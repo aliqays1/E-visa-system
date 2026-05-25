@@ -171,13 +171,15 @@ exports.updateStatus = async (req, res) => {
 // Public Visa Tracking
 exports.trackVisa = async (req, res) => {
   try {
-    const { applicationId, passportNumber } = req.body;
+    const { email, passportNumber } = req.body;
 
-    if (!applicationId || !passportNumber) {
-      return res.status(400).json({ success: false, message: 'Application ID and Passport Number are required.' });
+    if (!email || !passportNumber) {
+      return res.status(400).json({ success: false, message: 'Email Address and Passport Number are required.' });
     }
 
-    const application = await VisaApplication.findById(applicationId);
+    const application = await VisaApplication.findOne({ 
+      'personalDetails.email': email
+    });
     
     if (!application) {
       return res.status(404).json({ success: false, message: 'Visa Application not found.' });
