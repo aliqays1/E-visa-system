@@ -338,7 +338,7 @@ const ApplicantDashboard = () => {
               <div className="flex gap-2">
                 {selectedVisa.pdfUrl && (
                   <a 
-                    href={`https://denim-wiring-huskiness.ngrok-free.dev/${selectedVisa.pdfUrl.replace(/\\/g, '/')}`}
+                    href={`/${selectedVisa.pdfUrl.replace(/\\/g, '/')}`}
                     target="_blank"
                     rel="noreferrer"
                     className="text-xs px-4 py-2 bg-green-700 text-white font-bold rounded-lg hover:bg-green-800 flex items-center transition-colors"

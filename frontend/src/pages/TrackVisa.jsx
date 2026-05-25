@@ -83,7 +83,7 @@ const TrackVisa = () => {
         <div className="mt-8 flex gap-4">
           {visaData.pdfUrl && (
             <a 
-              href={`https://denim-wiring-huskiness.ngrok-free.dev/${visaData.pdfUrl.replace(/\\/g, '/')}`}
+              href={`/${visaData.pdfUrl.replace(/\\/g, '/')}`}
               target="_blank"
               rel="noreferrer"
               className="flex-1 bg-primary hover:bg-blue-700 text-white font-bold py-4 rounded-xl text-center shadow-lg shadow-blue-500/30 transition-all"
