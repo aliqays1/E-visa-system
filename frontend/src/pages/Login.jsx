@@ -29,7 +29,7 @@ const Login = () => {
 
   return (
     <div className="min-h-screen bg-[#f4f7fa] flex items-center justify-center p-4 font-sans">
-      <div className="w-full max-w-[480px] bg-white rounded-xl shadow-[0_2px_12px_rgba(0,0,0,0.04)] p-10 border border-gray-100 relative">
+      <div className="w-full max-w-[480px] bg-white rounded-xl shadow-[0_2px_12px_rgba(0,0,0,0.04)] p-6 sm:p-10 border border-gray-100 relative">
         
         {/* Decorative corner element (optional detail found in some Able Pro themes) */}
         <div className="absolute top-0 right-0 w-24 h-24 bg-blue-50 rounded-bl-full opacity-50 pointer-events-none"></div>

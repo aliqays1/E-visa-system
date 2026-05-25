@@ -15,7 +15,7 @@ const ApplicantDashboard = () => {
   const fetchApplications = async () => {
     if (!token) return;
     try {
-      const res = await axios.get('http://192.168.100.159:5000/api/visa/my-applications', {
+      const res = await axios.get('/api/visa/my-applications', {
         headers: {
           'Authorization': `Bearer ${token}`
         }
@@ -106,7 +106,7 @@ const ApplicantDashboard = () => {
         formDataToSend.append('supportingDocument', supportBlob, pendingVisa.supportingDocName);
       }
 
-      const res = await axios.post('http://192.168.100.159:5000/api/visa/apply', formDataToSend, {
+      const res = await axios.post('/api/visa/apply', formDataToSend, {
         headers: {
           'Content-Type': 'multipart/form-data',
           'Authorization': `Bearer ${token}`
@@ -133,12 +133,12 @@ const ApplicantDashboard = () => {
 
   return (
     <div className="min-h-screen bg-[#f8fafc] pb-20">
-      <header className="bg-white shadow-sm border-b border-gray-100 py-4 px-8 flex justify-between items-center relative z-10">
-        <div className="flex items-center space-x-3">
+      <header className="bg-white shadow-sm border-b border-gray-100 py-4 px-4 md:px-8 flex flex-col md:flex-row justify-between items-center gap-4 relative z-10">
+        <div className="flex items-center space-x-3 text-center md:text-left">
           <span className="text-2xl">🇸🇴</span>
-          <h1 className="text-xl font-bold text-gray-900 tracking-tight">Somalia E-Visa Applicant Portal</h1>
+          <h1 className="text-lg md:text-xl font-bold text-gray-900 tracking-tight">Somalia E-Visa Applicant Portal</h1>
         </div>
-        <div className="flex items-center space-x-6">
+        <div className="flex flex-wrap justify-center items-center gap-3 md:space-x-6">
           <span className="text-sm font-medium text-gray-600 hidden md:block">
             Welcome, <span className="text-primary font-bold">{user.fullName || 'Applicant'}</span>
           </span>
@@ -338,7 +338,7 @@ const ApplicantDashboard = () => {
               <div className="flex gap-2">
                 {selectedVisa.pdfUrl && (
                   <a 
-                    href={`http://192.168.100.159:5000/${selectedVisa.pdfUrl.replace(/\\/g, '/')}`}
+                    href={`https://denim-wiring-huskiness.ngrok-free.dev/${selectedVisa.pdfUrl.replace(/\\/g, '/')}`}
                     target="_blank"
                     rel="noreferrer"
                     className="text-xs px-4 py-2 bg-green-700 text-white font-bold rounded-lg hover:bg-green-800 flex items-center transition-colors"

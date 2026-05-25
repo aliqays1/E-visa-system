@@ -9,7 +9,8 @@ import {
   GlobeAltIcon, 
   ShieldCheckIcon,
   BellAlertIcon,
-  ClockIcon
+  ClockIcon,
+  Bars3Icon
 } from '@heroicons/react/24/outline';
 
 const AuditorDashboard = () => {
@@ -17,6 +18,7 @@ const AuditorDashboard = () => {
   const token = user ? user.token : null;
 
   const [activeTab, setActiveTab] = useState('overview');
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   
   const [stats, setStats] = useState({ totalApps: 0, approved: 0, rejected: 0, pending: 0, overstays: 0 });
   const [applications, setApplications] = useState([]);
@@ -36,13 +38,13 @@ const AuditorDashboard = () => {
     try {
       const headers = { 'Authorization': `Bearer ${token}` };
       
-      const statsRes = await axios.get('http://192.168.100.159:5000/api/auditor/overview', { headers });
+      const statsRes = await axios.get('/api/auditor/overview', { headers });
       if (statsRes.data.success) setStats(statsRes.data.stats);
 
-      const appsRes = await axios.get('http://192.168.100.159:5000/api/auditor/applications', { headers });
+      const appsRes = await axios.get('/api/auditor/applications', { headers });
       if (appsRes.data.success) setApplications(appsRes.data.applications);
 
-      const logsRes = await axios.get('http://192.168.100.159:5000/api/auditor/activity-logs', { headers });
+      const logsRes = await axios.get('/api/auditor/activity-logs', { headers });
       if (logsRes.data.success) setLogs(logsRes.data.logs);
 
     } catch (error) {
@@ -64,9 +66,12 @@ const AuditorDashboard = () => {
   }
 
   return (
-    <div className="min-h-screen bg-[#f4f7fa] flex">
+    <div className="min-h-screen bg-[#f4f7fa] flex relative">
       {/* Sidebar Navigation */}
-      <aside className="w-64 bg-[#1e293b] text-white flex flex-col shadow-xl z-10 sticky top-0 h-screen">
+      {mobileMenuOpen && (
+        <div className="fixed inset-0 bg-black/50 z-40 lg:hidden" onClick={() => setMobileMenuOpen(false)}></div>
+      )}
+      <aside className={`w-64 bg-[#1e293b] text-white flex flex-col shadow-xl z-50 fixed lg:sticky top-0 h-screen transition-transform duration-300 ${mobileMenuOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}`}>
         <div className="p-6 flex items-center space-x-3 border-b border-gray-700 bg-[#0f172a]">
           <ShieldCheckIcon className="h-8 w-8 text-indigo-400" />
           <h2 className="text-xl font-extrabold tracking-tight">Oversight</h2>
@@ -101,10 +106,15 @@ const AuditorDashboard = () => {
       </aside>
 
       {/* Main Content Area */}
-      <main className="flex-1 flex flex-col h-screen overflow-y-auto">
-        <header className="bg-white px-8 py-5 flex items-center justify-between border-b border-gray-200 shadow-sm sticky top-0 z-10">
-          <div className="flex items-center bg-gray-50 px-4 py-2 rounded-xl border border-gray-200 w-96">
-            <span className="text-sm text-gray-500 italic">Read-Only Mode Active</span>
+      <div className="flex-1 flex flex-col h-screen overflow-y-auto w-full">
+        <header className="bg-white px-4 lg:px-8 py-5 flex flex-col sm:flex-row items-center justify-between border-b border-gray-200 shadow-sm sticky top-0 z-10 gap-4">
+          <div className="flex w-full sm:w-auto items-center gap-4">
+            <button className="lg:hidden text-gray-500 hover:text-indigo-600" onClick={() => setMobileMenuOpen(!mobileMenuOpen)}>
+              <Bars3Icon className="h-6 w-6" />
+            </button>
+            <div className="flex-1 flex items-center bg-gray-50 px-4 py-2 rounded-xl border border-gray-200 sm:w-96">
+              <span className="text-sm text-gray-500 italic">Read-Only Mode Active</span>
+            </div>
           </div>
           <div className="flex items-center space-x-4">
             <div className="flex items-center justify-center h-10 w-10 bg-indigo-100 rounded-full text-indigo-700 font-bold border border-indigo-200">
@@ -481,7 +491,7 @@ const AuditorDashboard = () => {
             </>
           )}
         </div>
-      </main>
+      </div>
 
       {/* Inspection Modal */}
       {selectedApplication && (

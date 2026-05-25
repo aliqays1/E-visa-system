@@ -17,7 +17,7 @@ export const AuthProvider = ({ children }) => {
 
   const login = async (email, password) => {
     try {
-      const { data } = await axios.post('http://192.168.100.159:5000/api/auth/login', { email, password });
+      const { data } = await axios.post('/api/auth/login', { email, password });
       setUser(data);
       sessionStorage.setItem('userInfo', JSON.stringify(data));
       return { success: true, user: data };
@@ -28,7 +28,7 @@ export const AuthProvider = ({ children }) => {
 
   const register = async (fullName, email, password, phone, nationality) => {
     try {
-      const { data } = await axios.post('http://192.168.100.159:5000/api/auth/register', {
+      const { data } = await axios.post('/api/auth/register', {
         fullName,
         email,
         password,

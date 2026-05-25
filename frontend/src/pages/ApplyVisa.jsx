@@ -174,7 +174,7 @@ const ApplyVisa = () => {
       <div className="max-w-6xl mx-auto flex flex-col lg:flex-row gap-8 items-start">
         
         {/* Left Column: Interactive Stepper Checklist */}
-        <div className="w-full lg:w-80 bg-[#f4f7fb]/95 backdrop-blur-2xl rounded-3xl border border-white/60 shadow-[0_8px_30px_rgb(0,0,0,0.06)] p-6 shrink-0 sticky top-8">
+        <div className="w-full lg:w-80 bg-[#f4f7fb]/95 backdrop-blur-2xl rounded-3xl border border-white/60 shadow-[0_8px_30px_rgb(0,0,0,0.06)] p-4 lg:p-6 shrink-0 relative lg:sticky lg:top-8">
           <div className="mb-6 border-b pb-4">
             <h4 className="text-xs uppercase font-extrabold text-primary tracking-wider">Application Stages</h4>
             <p className="text-gray-500 text-xs mt-1">Track your progress and upcoming steps</p>

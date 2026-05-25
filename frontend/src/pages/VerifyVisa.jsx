@@ -46,7 +46,7 @@ const VerifyVisa = () => {
         }
       }
 
-      const res = await fetch(`http://192.168.100.159:5000/api/visa/verify/${token}`, { headers });
+      const res = await fetch(`/api/visa/verify/${token}`, { headers });
       const result = await res.json();
 
       if (result.success) {
@@ -68,7 +68,7 @@ const VerifyVisa = () => {
       const user = JSON.parse(userInfoRaw);
       const authToken = user.token;
 
-      const res = await fetch(`http://192.168.100.159:5000/api/visa/${data.application._id}/${action}`, {
+      const res = await fetch(`/api/visa/${data.application._id}/${action}`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

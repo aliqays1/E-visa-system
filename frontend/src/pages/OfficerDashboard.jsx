@@ -11,7 +11,8 @@ import {
   BellIcon,
   BanknotesIcon,
   ShieldCheckIcon,
-  ExclamationTriangleIcon
+  ExclamationTriangleIcon,
+  Bars3Icon
 } from '@heroicons/react/24/outline';
 
 const OfficerDashboard = () => {
@@ -22,6 +23,7 @@ const OfficerDashboard = () => {
   const [rejectionReason, setRejectionReason] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
   const [activeTab, setActiveTab] = useState('review');
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const navigate = useNavigate();
 
   // Border Control states
@@ -33,7 +35,7 @@ const OfficerDashboard = () => {
   const fetchApplications = async () => {
     if (!token) return;
     try {
-      const res = await axios.get('http://192.168.100.159:5000/api/visa/all', {
+      const res = await axios.get('/api/visa/all', {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       if (res.data.success) {
@@ -63,7 +65,7 @@ const OfficerDashboard = () => {
         payload.rejectionReason = rejectionReason;
       }
 
-      const res = await axios.put(`http://192.168.100.159:5000/api/visa/${id}/status`, payload, {
+      const res = await axios.put(`/api/visa/${id}/status`, payload, {
         headers: { 'Authorization': `Bearer ${token}` }
       });
 
@@ -83,7 +85,7 @@ const OfficerDashboard = () => {
 
   const handleVerifyPayment = async (id, status) => {
     try {
-      const res = await axios.put(`http://192.168.100.159:5000/api/visa/${id}/verify-payment`, {
+      const res = await axios.put(`/api/visa/${id}/verify-payment`, {
         paymentStatus: status,
         transactionId: `TXN-MANUAL-${Math.floor(Math.random()*10000)}`,
         amountPaid: 100
@@ -124,7 +126,7 @@ const OfficerDashboard = () => {
     if (!app) return alert('No application found with that token!');
 
     try {
-      const res = await axios.post(`http://192.168.100.159:5000/api/visa/${app._id}/${action}`, {}, {
+      const res = await axios.post(`/api/visa/${app._id}/${action}`, {}, {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       if (res.data.success) {
@@ -140,7 +142,7 @@ const OfficerDashboard = () => {
 
   const checkOverstays = async () => {
     try {
-      const res = await axios.post('http://192.168.100.159:5000/api/visa/check-overstays', {}, {
+      const res = await axios.post('/api/visa/check-overstays', {}, {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       if (res.data.success) {
@@ -208,18 +210,23 @@ const OfficerDashboard = () => {
       </aside>
 
       {/* Main Content */}
-      <div className="flex-1 flex flex-col overflow-hidden">
+      <div className="flex-1 flex flex-col overflow-hidden w-full">
         {/* Top Header */}
-        <header className="h-16 bg-white border-b border-gray-200 flex items-center justify-between px-6 shadow-sm">
-          <div className="flex items-center bg-gray-50 border border-gray-200 px-4 py-2 rounded-xl w-96 transition-colors focus-within:border-primary focus-within:bg-white">
-            <MagnifyingGlassIcon className="h-5 w-5 text-gray-400 mr-2" />
-            <input 
+        <header className="min-h-16 bg-white border-b border-gray-200 flex flex-col md:flex-row items-center justify-between p-4 lg:px-6 shadow-sm gap-4">
+          <div className="flex items-center w-full md:w-auto gap-4">
+            <button className="lg:hidden text-gray-500 hover:text-primary" onClick={() => setMobileMenuOpen(!mobileMenuOpen)}>
+              <Bars3Icon className="h-6 w-6" />
+            </button>
+            <div className="flex flex-1 items-center bg-gray-50 border border-gray-200 px-4 py-2 rounded-xl md:w-96 transition-colors focus-within:border-primary focus-within:bg-white">
+              <MagnifyingGlassIcon className="h-5 w-5 text-gray-400 mr-2" />
+              <input 
               type="text" 
               placeholder="Search by Name, Passport, Visa ID, or QR Token..." 
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               className="bg-transparent border-none focus:outline-none text-sm w-full text-gray-700" 
             />
+            </div>
           </div>
           <div className="flex items-center space-x-6">
             <button onClick={checkOverstays} className="px-4 py-1.5 bg-gray-100 text-xs font-bold rounded-lg hover:bg-gray-200">Run Overstay Check</button>
@@ -484,15 +491,15 @@ const OfficerDashboard = () => {
                 <div className="grid grid-cols-3 gap-4 text-xs">
                   <div>
                     <span className="text-gray-500 block mb-1">Passport Scan</span>
-                    {selectedApplication.passportDocument ? <a href={`http://192.168.100.159:5000/uploads/${selectedApplication.passportDocument.split(/[\\/]/).pop()}`} target="_blank" rel="noreferrer" className="text-blue-600 hover:underline font-bold">📄 View Passport</a> : 'N/A'}
+                    {selectedApplication.passportDocument ? <a href={`https://denim-wiring-huskiness.ngrok-free.dev/uploads/${selectedApplication.passportDocument.split(/[\\/]/).pop()}`} target="_blank" rel="noreferrer" className="text-blue-600 hover:underline font-bold">📄 View Passport</a> : 'N/A'}
                   </div>
                   <div>
                     <span className="text-gray-500 block mb-1">Applicant Photo</span>
-                    {selectedApplication.supportingDocuments && selectedApplication.supportingDocuments[0] ? <a href={`http://192.168.100.159:5000/uploads/${selectedApplication.supportingDocuments[0].split(/[\\/]/).pop()}`} target="_blank" rel="noreferrer" className="text-blue-600 hover:underline font-bold">📷 View Photo</a> : 'N/A'}
+                    {selectedApplication.supportingDocuments && selectedApplication.supportingDocuments[0] ? <a href={`https://denim-wiring-huskiness.ngrok-free.dev/uploads/${selectedApplication.supportingDocuments[0].split(/[\\/]/).pop()}`} target="_blank" rel="noreferrer" className="text-blue-600 hover:underline font-bold">📷 View Photo</a> : 'N/A'}
                   </div>
                   <div>
                     <span className="text-gray-500 block mb-1">Bank Statement</span>
-                    {selectedApplication.supportingDocuments && selectedApplication.supportingDocuments[1] ? <a href={`http://192.168.100.159:5000/uploads/${selectedApplication.supportingDocuments[1].split(/[\\/]/).pop()}`} target="_blank" rel="noreferrer" className="text-blue-600 hover:underline font-bold">🏦 View Statement</a> : 'N/A'}
+                    {selectedApplication.supportingDocuments && selectedApplication.supportingDocuments[1] ? <a href={`https://denim-wiring-huskiness.ngrok-free.dev/uploads/${selectedApplication.supportingDocuments[1].split(/[\\/]/).pop()}`} target="_blank" rel="noreferrer" className="text-blue-600 hover:underline font-bold">🏦 View Statement</a> : 'N/A'}
                   </div>
                 </div>
               </div>

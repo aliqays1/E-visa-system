@@ -37,7 +37,7 @@ const Register = () => {
 
   return (
     <div className="min-h-screen bg-[#F8FAFc] flex items-center justify-center p-4 py-12">
-      <div className="w-full max-w-lg bg-white rounded-3xl shadow-xl overflow-hidden p-8 md:p-10 border border-gray-100">
+      <div className="w-full max-w-[480px] bg-white rounded-xl shadow-[0_2px_12px_rgba(0,0,0,0.04)] p-6 sm:p-10 border border-gray-100 relative">
         
         {/* Header */}
         <div className="text-center mb-8">

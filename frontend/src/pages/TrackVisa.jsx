@@ -17,7 +17,7 @@ const TrackVisa = () => {
     setLoading(true);
 
     try {
-      const res = await axios.post('http://192.168.100.159:5000/api/visa/track', {
+      const res = await axios.post('/api/visa/track', {
         email: email.trim(),
         passportNumber: passportNumber.trim()
       });
@@ -83,7 +83,7 @@ const TrackVisa = () => {
         <div className="mt-8 flex gap-4">
           {visaData.pdfUrl && (
             <a 
-              href={`http://192.168.100.159:5000/${visaData.pdfUrl.replace(/\\/g, '/')}`}
+              href={`https://denim-wiring-huskiness.ngrok-free.dev/${visaData.pdfUrl.replace(/\\/g, '/')}`}
               target="_blank"
               rel="noreferrer"
               className="flex-1 bg-primary hover:bg-blue-700 text-white font-bold py-4 rounded-xl text-center shadow-lg shadow-blue-500/30 transition-all"
