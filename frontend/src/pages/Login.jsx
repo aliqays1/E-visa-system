@@ -283,8 +283,8 @@ const Login = () => {
         {/* Unsplash Image Background */}
         <div className="absolute inset-0">
           <img 
-            src="https://images.unsplash.com/photo-1436491865332-7a61a109cc05?q=80&w=2074&auto=format&fit=crop" 
-            alt="Airplane flying over clouds" 
+            src="https://images.unsplash.com/photo-1556388158-158ea5ccacbd?q=80&w=2070&auto=format&fit=crop" 
+            alt="Modern Airport Terminal" 
             className="object-cover w-full h-full scale-105"
           />
         </div>
