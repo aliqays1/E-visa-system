@@ -107,41 +107,51 @@ const Register = () => {
   };
 
   return (
-    <div className="min-h-screen bg-[#f4f7fa] flex">
+    <div className="min-h-screen bg-white flex font-sans selection:bg-blue-200">
       {/* Left side - Form */}
-      <div className="w-full lg:w-1/2 flex items-center justify-center p-6 sm:p-12 overflow-y-auto">
-        <div className="w-full max-w-[500px]">
+      <div className="w-full lg:w-1/2 flex items-center justify-center p-6 sm:p-12 overflow-y-auto relative">
+        
+        {/* Subtle decorative background blobs */}
+        <div className="absolute top-0 left-0 w-full h-full overflow-hidden -z-10 pointer-events-none">
+          <div className="absolute -top-[20%] -left-[10%] w-[50%] h-[50%] rounded-full bg-blue-50/50 blur-3xl"></div>
+          <div className="absolute bottom-[10%] -right-[20%] w-[60%] h-[60%] rounded-full bg-indigo-50/50 blur-3xl"></div>
+        </div>
+
+        <div className="w-full max-w-[480px] relative z-10 my-auto">
           
           {/* Logo */}
-          <div className="flex items-center mb-8">
-            <Link to="/" className="flex items-center cursor-pointer">
-              <GlobeAltIcon className="h-10 w-10 text-primary mr-3" />
+          <div className="flex items-center mb-10 pt-8 sm:pt-0">
+            <Link to="/" className="flex items-center cursor-pointer group">
+              <div className="bg-gradient-to-tr from-blue-600 to-indigo-600 p-2.5 rounded-2xl shadow-lg shadow-blue-500/30 group-hover:shadow-blue-500/50 transition-all duration-300 mr-4">
+                <GlobeAltIcon className="h-7 w-7 text-white" />
+              </div>
               <div className="flex flex-col text-left">
-                <span className="font-extrabold text-xl text-gray-900 tracking-tight leading-none">Somalia</span>
-                <span className="font-bold text-[10px] text-primary tracking-widest uppercase">E-Visa Portal</span>
+                <span className="font-extrabold text-2xl text-gray-900 tracking-tight leading-none group-hover:text-blue-600 transition-colors">Somalia</span>
+                <span className="font-bold text-[11px] text-gray-500 tracking-[0.2em] uppercase mt-0.5">E-Visa Portal</span>
               </div>
             </Link>
           </div>
 
           {step === 1 ? (
-            <>
+            <div className="animate-fade-in-up pb-12">
               <div className="mb-8">
-                <h1 className="text-3xl font-bold text-gray-900 mb-2">Create Account</h1>
-                <p className="text-gray-500 font-medium">Sign up for your official Somalia E-Visa account.</p>
+                <h1 className="text-4xl font-extrabold text-gray-900 mb-3 tracking-tight">Create Account</h1>
+                <p className="text-gray-500 font-medium text-lg">Sign up for your official Somalia E-Visa account.</p>
               </div>
 
               {error && (
-                <div className="mb-6 bg-red-50 text-red-600 p-4 rounded-xl text-sm border border-red-100 font-medium">
+                <div className="mb-6 bg-red-50/80 backdrop-blur-sm text-red-600 p-4 rounded-2xl text-sm border border-red-100 font-medium flex items-center shadow-sm">
+                  <svg className="w-5 h-5 mr-3 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" /></svg>
                   {error}
                 </div>
               )}
 
               <form onSubmit={handleRegisterSubmit} className="space-y-5">
-                <div>
-                  <label className="block text-xs font-bold uppercase tracking-wider text-gray-500 mb-2">Full Name</label>
+                <div className="space-y-1.5">
+                  <label className="block text-xs font-extrabold uppercase tracking-widest text-gray-500 ml-1">Full Name</label>
                   <input 
                     type="text" 
-                    className="w-full px-4 py-3.5 rounded-xl border border-gray-200 focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all text-gray-900 bg-gray-50 focus:bg-white"
+                    className="w-full px-5 py-3.5 rounded-2xl border border-gray-200 focus:outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 transition-all text-gray-900 bg-white shadow-sm hover:border-gray-300 text-base"
                     placeholder="e.g. Ayaan Warsame"
                     value={fullName}
                     onChange={(e) => setFullName(e.target.value)}
@@ -149,25 +159,25 @@ const Register = () => {
                   />
                 </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-xs font-bold uppercase tracking-wider text-gray-500 mb-2">Email Address</label>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                  <div className="space-y-1.5">
+                    <label className="block text-xs font-extrabold uppercase tracking-widest text-gray-500 ml-1">Email Address</label>
                     <input 
                       type="email" 
-                      className="w-full px-4 py-3.5 rounded-xl border border-gray-200 focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all text-gray-900 bg-gray-50 focus:bg-white"
-                      placeholder="email@example.com"
+                      className="w-full px-5 py-3.5 rounded-2xl border border-gray-200 focus:outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 transition-all text-gray-900 bg-white shadow-sm hover:border-gray-300 text-base"
+                      placeholder="name@example.com"
                       value={email}
                       onChange={(e) => setEmail(e.target.value)}
                       required
                     />
                   </div>
                   
-                  <div>
-                    <label className="block text-xs font-bold uppercase tracking-wider text-gray-500 mb-2">Nationality</label>
+                  <div className="space-y-1.5">
+                    <label className="block text-xs font-extrabold uppercase tracking-widest text-gray-500 ml-1">Nationality</label>
                     <input 
                       type="text" 
-                      className="w-full px-4 py-3.5 rounded-xl border border-gray-200 focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all text-gray-900 bg-gray-50 focus:bg-white"
-                      placeholder="Citizenship country"
+                      className="w-full px-5 py-3.5 rounded-2xl border border-gray-200 focus:outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 transition-all text-gray-900 bg-white shadow-sm hover:border-gray-300 text-base"
+                      placeholder="Citizenship"
                       value={nationality}
                       onChange={(e) => setNationality(e.target.value)}
                       required
@@ -175,13 +185,13 @@ const Register = () => {
                   </div>
                 </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-xs font-bold uppercase tracking-wider text-gray-500 mb-2">Password</label>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                  <div className="space-y-1.5">
+                    <label className="block text-xs font-extrabold uppercase tracking-widest text-gray-500 ml-1">Password</label>
                     <div className="relative">
                       <input 
                         type={showPassword ? "text" : "password"} 
-                        className="w-full px-4 py-3.5 rounded-xl border border-gray-200 focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all text-gray-900 bg-gray-50 focus:bg-white pr-12"
+                        className="w-full px-5 py-3.5 rounded-2xl border border-gray-200 focus:outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 transition-all text-gray-900 bg-white shadow-sm hover:border-gray-300 text-base pr-12"
                         placeholder="••••••••"
                         value={password}
                         onChange={(e) => setPassword(e.target.value)}
@@ -189,7 +199,7 @@ const Register = () => {
                       />
                       <button 
                         type="button"
-                        className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 p-1"
+                        className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-700 transition-colors p-1"
                         onClick={() => setShowPassword(!showPassword)}
                       >
                         {showPassword ? <EyeSlashIcon className="h-5 w-5" /> : <EyeIcon className="h-5 w-5" />}
@@ -197,12 +207,12 @@ const Register = () => {
                     </div>
                   </div>
                   
-                  <div>
-                    <label className="block text-xs font-bold uppercase tracking-wider text-gray-500 mb-2">Confirm</label>
+                  <div className="space-y-1.5">
+                    <label className="block text-xs font-extrabold uppercase tracking-widest text-gray-500 ml-1">Confirm</label>
                     <div className="relative">
                       <input 
                         type={showConfirmPassword ? "text" : "password"} 
-                        className="w-full px-4 py-3.5 rounded-xl border border-gray-200 focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all text-gray-900 bg-gray-50 focus:bg-white pr-12"
+                        className="w-full px-5 py-3.5 rounded-2xl border border-gray-200 focus:outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 transition-all text-gray-900 bg-white shadow-sm hover:border-gray-300 text-base pr-12"
                         placeholder="••••••••"
                         value={confirmPassword}
                         onChange={(e) => setConfirmPassword(e.target.value)}
@@ -210,7 +220,7 @@ const Register = () => {
                       />
                       <button 
                         type="button"
-                        className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 p-1"
+                        className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-700 transition-colors p-1"
                         onClick={() => setShowConfirmPassword(!showConfirmPassword)}
                       >
                         {showConfirmPassword ? <EyeSlashIcon className="h-5 w-5" /> : <EyeIcon className="h-5 w-5" />}
@@ -222,56 +232,73 @@ const Register = () => {
                 <button 
                   type="submit" 
                   disabled={loading}
-                  className="w-full mt-2 bg-primary hover:bg-blue-700 text-white font-bold py-3.5 px-4 rounded-xl shadow-lg shadow-blue-500/30 transition-all duration-200 transform hover:-translate-y-0.5 disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="w-full mt-4 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-bold py-4 px-4 rounded-2xl transition-all duration-300 shadow-[0_8px_30px_rgb(59,130,246,0.3)] hover:shadow-[0_8px_30px_rgb(59,130,246,0.5)] transform hover:-translate-y-1 disabled:opacity-70 disabled:cursor-not-allowed disabled:transform-none flex justify-center items-center text-lg"
                 >
-                  {loading ? 'Processing...' : 'Create Account'}
+                  {loading ? (
+                    <>
+                      <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
+                      Processing...
+                    </>
+                  ) : 'Create Account'}
                 </button>
               </form>
 
-              <div className="mt-8 text-center text-sm font-medium">
-                <span className="text-gray-500">Already have an account? </span>
-                <Link to="/login" className="text-primary hover:text-blue-800 font-bold transition-colors">Sign in</Link>
+              <div className="mt-8 text-center">
+                <p className="text-gray-500 font-medium">
+                  Already have an account?{' '}
+                  <Link to="/login" className="font-bold text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 transition-all">
+                    Sign in here
+                  </Link>
+                </p>
               </div>
-            </>
+            </div>
           ) : (
-            <div className="flex flex-col items-center justify-center w-full mt-4">
-              <div className="w-full max-w-sm">
-                <div className="flex items-center justify-center mb-6">
-                  <div className="h-20 w-20 bg-blue-50 rounded-full flex items-center justify-center shadow-inner">
-                    <EnvelopeIcon className="h-10 w-10 text-primary" />
+            <div className="flex flex-col items-center justify-center w-full animate-fade-in-up pb-12">
+              <div className="w-full">
+                <div className="flex items-center justify-center mb-8">
+                  <div className="relative">
+                    <div className="absolute inset-0 bg-blue-400 blur-[20px] opacity-30 rounded-full"></div>
+                    <div className="h-24 w-24 bg-gradient-to-tr from-blue-50 to-indigo-50 border border-white rounded-full flex items-center justify-center shadow-xl relative z-10">
+                      <EnvelopeIcon className="h-10 w-10 text-blue-600" />
+                    </div>
                   </div>
                 </div>
                 
                 <h1 className="text-3xl font-extrabold text-gray-900 mb-3 text-center tracking-tight">Check your email</h1>
-                <p className="text-gray-500 font-medium leading-relaxed text-center mb-8">
-                  We've sent a 6-digit verification code to <br/><span className="font-bold text-gray-800">{email}</span>
+                <p className="text-gray-500 font-medium leading-relaxed text-center mb-8 text-lg">
+                  We've sent a 6-digit code to<br/>
+                  <span className="font-bold text-gray-900">{email}</span>
                 </p>
 
                 {error && (
-                  <div className="mb-6 bg-red-50 text-red-600 p-4 rounded-xl text-sm border border-red-100 font-medium text-center">
+                  <div className="mb-6 bg-red-50/80 backdrop-blur-sm text-red-600 p-4 rounded-2xl text-sm border border-red-100 font-medium text-center shadow-sm">
                     {error}
                   </div>
                 )}
 
-                <form onSubmit={handleOtpSubmit} className="space-y-6 w-full flex flex-col items-center">
+                <form onSubmit={handleOtpSubmit} className="space-y-8 w-full flex flex-col items-center">
                   <div className="w-full">
                     <OtpInput value={otpCode} onChange={setOtpCode} />
                     
-                    <div className="mt-6 flex flex-col items-center justify-center space-y-2 text-sm w-full">
-                      <span className={`font-medium ${timeLeft === 0 ? 'text-red-600' : 'text-gray-500'}`}>
-                        {timeLeft > 0 ? `Code expires in ${Math.floor(timeLeft / 60)}:${(timeLeft % 60).toString().padStart(2, '0')}` : 'Code has expired'}
-                      </span>
+                    <div className="mt-8 flex flex-col items-center justify-center space-y-3 text-sm w-full">
+                      <div className="flex items-center justify-center space-x-2 bg-gray-50 px-4 py-2 rounded-full border border-gray-100">
+                        <svg className={`w-4 h-4 ${timeLeft === 0 ? 'text-red-500' : 'text-blue-500'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                        <span className={`font-bold tracking-wide ${timeLeft === 0 ? 'text-red-600' : 'text-gray-700'}`}>
+                          {timeLeft > 0 ? `${Math.floor(timeLeft / 60)}:${(timeLeft % 60).toString().padStart(2, '0')}` : 'Expired'}
+                        </span>
+                      </div>
+                      
                       {timeLeft === 0 ? (
                         <button 
                           type="button" 
                           onClick={handleResend} 
                           disabled={loading} 
-                          className="text-primary font-bold hover:text-blue-800 hover:underline transition-all"
+                          className="font-bold text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 transition-all hover:underline"
                         >
                           Didn't receive the code? Resend now
                         </button>
                       ) : (
-                        <span className="text-gray-400">Didn't receive the code? Resend in {Math.floor(timeLeft / 60)}:${(timeLeft % 60).toString().padStart(2, '0')}</span>
+                        <span className="text-gray-500 font-medium">Didn't receive it? Resend in {Math.floor(timeLeft / 60)}:{(timeLeft % 60).toString().padStart(2, '0')}</span>
                       )}
                     </div>
                   </div>
@@ -279,17 +306,24 @@ const Register = () => {
                   <button 
                     type="submit" 
                     disabled={loading || otpCode.length !== 6 || timeLeft === 0}
-                    className="w-full bg-primary hover:bg-blue-700 text-white font-bold py-4 px-4 rounded-xl transition-all shadow-lg shadow-blue-500/30 transform hover:-translate-y-0.5 disabled:opacity-50 disabled:cursor-not-allowed text-lg"
+                    className="w-full bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-bold py-4 px-4 rounded-2xl transition-all duration-300 shadow-[0_8px_30px_rgb(59,130,246,0.3)] hover:shadow-[0_8px_30px_rgb(59,130,246,0.5)] transform hover:-translate-y-1 disabled:opacity-70 disabled:cursor-not-allowed disabled:transform-none flex justify-center items-center text-lg"
                   >
-                    {loading ? 'Verifying...' : 'Verify Email'}
+                    {loading ? (
+                      <>
+                        <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
+                        Verifying...
+                      </>
+                    ) : 'Verify Email'}
                   </button>
 
                   <button 
                     type="button" 
                     onClick={() => { setStep(1); setOtpCode(''); setLoading(false); setError(''); }}
-                    className="mt-4 text-gray-500 hover:text-gray-800 font-bold transition-all text-sm flex items-center"
+                    className="mt-2 text-gray-500 hover:text-gray-900 font-bold transition-all text-sm flex items-center group"
                   >
-                    <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path></svg>
+                    <div className="bg-gray-100 p-1.5 rounded-full mr-2 group-hover:bg-gray-200 transition-colors">
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path></svg>
+                    </div>
                     Back to registration
                   </button>
                 </form>
@@ -299,29 +333,68 @@ const Register = () => {
         </div>
       </div>
 
-      {/* Right side - Image/Graphic */}
-      <div className="hidden lg:flex lg:w-1/2 relative bg-slate-900 items-center justify-center overflow-hidden">
-        <div className="absolute inset-0 bg-gradient-to-br from-slate-800 to-slate-900"></div>
-        <div className="absolute inset-0 opacity-10 bg-[radial-gradient(circle_at_center,_var(--tw-gradient-stops))] from-white via-transparent to-transparent bg-[length:20px_20px]"></div>
+      {/* Right side - Stunning Visual */}
+      <div className="hidden lg:flex lg:w-1/2 relative items-center justify-center overflow-hidden">
+        {/* Unsplash Image Background */}
+        <div className="absolute inset-0">
+          <img 
+            src="https://images.unsplash.com/photo-1542361345-89e58247f2d5?q=80&w=2070&auto=format&fit=crop" 
+            alt="Beautiful landscape" 
+            className="object-cover w-full h-full scale-105"
+          />
+        </div>
         
-        <div className="relative z-10 p-12 text-center text-white max-w-lg">
-          <h2 className="text-4xl font-extrabold mb-6 leading-tight">Start your journey to Somalia</h2>
-          <div className="space-y-6 text-left">
-            <div className="flex items-start">
-              <div className="flex-shrink-0 h-8 w-8 rounded-full bg-slate-700/50 flex items-center justify-center font-bold mt-1 text-slate-200">1</div>
-              <p className="ml-4 text-slate-300 font-medium">Create your secure account to manage your applications.</p>
+        {/* Deep Premium Gradient Overlay */}
+        <div className="absolute inset-0 bg-gradient-to-br from-blue-900/90 via-indigo-900/80 to-slate-900/90 mix-blend-multiply"></div>
+        
+        {/* Extra glow effect */}
+        <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent"></div>
+        
+        <div className="relative z-10 p-16 flex flex-col justify-end h-full w-full max-w-2xl text-white">
+          <div className="mb-10">
+            <h2 className="text-5xl font-extrabold mb-6 leading-[1.1] tracking-tight drop-shadow-lg">
+              Start your journey<br/>to Somalia.
+            </h2>
+            <p className="text-blue-50 text-xl leading-relaxed font-medium max-w-lg drop-shadow-md opacity-90">
+              Join thousands of travelers who have already used our secure portal.
+            </p>
+          </div>
+          
+          <div className="space-y-6 text-left bg-white/10 backdrop-blur-md border border-white/10 rounded-3xl p-8 shadow-2xl">
+            <div className="flex items-start group">
+              <div className="flex-shrink-0 h-10 w-10 rounded-2xl bg-white/20 flex items-center justify-center font-bold text-white group-hover:bg-blue-500 transition-colors shadow-lg border border-white/20">1</div>
+              <div className="ml-5">
+                <h4 className="text-lg font-bold">Create Account</h4>
+                <p className="text-blue-100/70 font-medium text-sm mt-1">Setup your secure digital identity.</p>
+              </div>
             </div>
-            <div className="flex items-start">
-              <div className="flex-shrink-0 h-8 w-8 rounded-full bg-slate-700/50 flex items-center justify-center font-bold mt-1 text-slate-200">2</div>
-              <p className="ml-4 text-slate-300 font-medium">Fill out your visa application forms completely online.</p>
+            <div className="flex items-start group">
+              <div className="flex-shrink-0 h-10 w-10 rounded-2xl bg-white/20 flex items-center justify-center font-bold text-white group-hover:bg-blue-500 transition-colors shadow-lg border border-white/20">2</div>
+              <div className="ml-5">
+                <h4 className="text-lg font-bold">Apply Online</h4>
+                <p className="text-blue-100/70 font-medium text-sm mt-1">Fill out the forms in under 5 minutes.</p>
+              </div>
             </div>
-            <div className="flex items-start">
-              <div className="flex-shrink-0 h-8 w-8 rounded-full bg-slate-700/50 flex items-center justify-center font-bold mt-1 text-slate-200">3</div>
-              <p className="ml-4 text-slate-300 font-medium">Receive your approved E-Visa directly in your dashboard.</p>
+            <div className="flex items-start group">
+              <div className="flex-shrink-0 h-10 w-10 rounded-2xl bg-white/20 flex items-center justify-center font-bold text-white group-hover:bg-blue-500 transition-colors shadow-lg border border-white/20">3</div>
+              <div className="ml-5">
+                <h4 className="text-lg font-bold">Get Approved</h4>
+                <p className="text-blue-100/70 font-medium text-sm mt-1">Receive your e-visa straight to your dashboard.</p>
+              </div>
             </div>
           </div>
         </div>
       </div>
+      
+      <style dangerouslySetInnerHTML={{__html: `
+        @keyframes fadeInUp {
+          from { opacity: 0; transform: translateY(20px); }
+          to { opacity: 1; transform: translateY(0); }
+        }
+        .animate-fade-in-up {
+          animation: fadeInUp 0.5s ease-out forwards;
+        }
+      `}} />
     </div>
   );
 };
