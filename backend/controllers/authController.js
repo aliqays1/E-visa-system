@@ -28,9 +28,9 @@ exports.registerUser = async (req, res) => {
     const salt = await bcrypt.genSalt(10);
     const hashedPassword = await bcrypt.hash(password, salt);
 
-    const isProduction = process.env.NODE_ENV === 'production' || 
-                         process.env.RENDER === 'true' || 
-                         (process.env.FRONTEND_URL && process.env.FRONTEND_URL.includes('vercel.app'));
+    const isProduction = req.hostname.includes('onrender.com') || 
+                         process.env.NODE_ENV === 'production' || 
+                         process.env.RENDER === 'true';
 
     if (isProduction) {
       // Create user immediately (bypassing OTP since Render blocks emails)
@@ -146,9 +146,9 @@ exports.loginUser = async (req, res) => {
   try {
     const { email, password } = req.body;
     const user = await User.findOne({ email });
-    const isProduction = process.env.NODE_ENV === 'production' || 
-                         process.env.RENDER === 'true' || 
-                         (process.env.FRONTEND_URL && process.env.FRONTEND_URL.includes('vercel.app'));
+    const isProduction = req.hostname.includes('onrender.com') || 
+                         process.env.NODE_ENV === 'production' || 
+                         process.env.RENDER === 'true';
 
     if (user && (await bcrypt.compare(password, user.password))) {
       // Bypass OTP if running on Render cloud (to avoid SMTP block) or for specific admins
