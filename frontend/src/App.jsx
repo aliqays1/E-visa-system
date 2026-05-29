@@ -1,6 +1,7 @@
 import { BrowserRouter as Router, Routes, Route, useLocation } from 'react-router-dom';
 import Login from './pages/Login';
 import Register from './pages/Register';
+import ForgotPassword from './pages/ForgotPassword';
 import Home from './pages/Home';
 import ApplyVisa from './pages/ApplyVisa';
 import TrackVisa from './pages/TrackVisa';
@@ -29,6 +30,7 @@ const AppLayout = () => {
           <Route path="/about" element={<About />} />
           <Route path="/verify" element={<VerifyVisa />} />
           <Route path="/login" element={<Login />} />
+          <Route path="/forgot-password" element={<ForgotPassword />} />
           <Route path="/register" element={<Register />} />
           <Route path="/applicant/*" element={<ApplicantDashboard />} />
           <Route path="/admin/*" element={<OfficerDashboard />} />

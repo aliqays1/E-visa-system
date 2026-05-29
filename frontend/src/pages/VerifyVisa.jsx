@@ -46,7 +46,8 @@ const VerifyVisa = () => {
         }
       }
 
-      const res = await fetch(`/api/visa/verify/${token}`, { headers });
+      const API_URL = import.meta.env.VITE_API_URL || '';
+      const res = await fetch(`${API_URL}/api/visa/verify/${token}`, { headers });
       const result = await res.json();
 
       if (result.success) {
@@ -68,7 +69,8 @@ const VerifyVisa = () => {
       const user = JSON.parse(userInfoRaw);
       const authToken = user.token;
 
-      const res = await fetch(`/api/visa/${data.application._id}/${action}`, {
+      const API_URL = import.meta.env.VITE_API_URL || '';
+      const res = await fetch(`${API_URL}/api/visa/${data.application._id}/${action}`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

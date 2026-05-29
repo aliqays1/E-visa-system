@@ -1,4 +1,6 @@
 const VisaApplication = require('../models/VisaApplication');
+const VerificationCode = require('../models/VerificationCode');
+const sendEmail = require('../utils/sendEmail');
 const QRCode = require('qrcode');
 const { v4: uuidv4 } = require('uuid');
 const { generateVisaPdf } = require('../utils/pdfGenerator');
@@ -138,7 +140,7 @@ exports.updateStatus = async (req, res) => {
 
       const name = application.personalDetails ? `${application.personalDetails.firstName || ''} ${application.personalDetails.lastName || ''}`.trim() : 'N/A';
       // The QR payload is JUST the verification URL so mobile phones will directly open it.
-     const qrData = `https://e-visa-system.vercel.app/verify?token=${secureToken}`;
+      const qrData = `http://192.168.100.159:5173/verify?token=${secureToken}`;
       
       const qrCodeBase64 = await QRCode.toDataURL(qrData);
       application.qrCodeUrl = qrCodeBase64;
@@ -190,7 +192,62 @@ exports.trackVisa = async (req, res) => {
       return res.status(401).json({ success: false, message: 'Invalid Passport Number for this application.' });
     }
 
-    // Return sanitized data
+    // Instead of returning data, send OTP
+    const code = Math.floor(100000 + Math.random() * 900000).toString();
+    const expiresAt = new Date(Date.now() + 2 * 60000); // 2 minutes
+
+    await VerificationCode.deleteMany({ email, type: 'track' });
+
+    await VerificationCode.create({
+      email,
+      code,
+      type: 'track',
+      expiresAt
+    });
+
+    const emailHtml = `
+      <div style="font-family: Arial, sans-serif; max-width: 500px; margin: 0 auto; padding: 20px; border: 1px solid #e5e7eb; border-radius: 12px;">
+        <h2 style="color: #1e3a8a; text-align: center;">Visa Tracking Verification</h2>
+        <p style="color: #4b5563; font-size: 16px;">Hello ${application.personalDetails.firstName},</p>
+        <p style="color: #4b5563; font-size: 16px;">Someone is trying to track your visa application. Please use the verification code below to view your status.</p>
+        <div style="background-color: #f3f4f6; padding: 16px; border-radius: 8px; text-align: center; margin: 24px 0;">
+          <span style="font-size: 32px; font-weight: bold; letter-spacing: 4px; color: #1e3a8a;">${code}</span>
+        </div>
+        <p style="color: #6b7280; font-size: 14px;">This code will expire in 2 minutes.</p>
+      </div>
+    `;
+
+    await sendEmail({
+      email,
+      subject: 'Somalia E-Visa - Tracking Verification Code',
+      html: emailHtml
+    });
+
+    res.json({ success: true, requires_otp: true, email, message: 'Verification code sent to your email.' });
+
+  } catch (error) {
+    console.error('Error tracking visa:', error);
+    res.status(500).json({ success: false, message: 'Server error tracking visa application.' });
+  }
+};
+
+exports.verifyTrackVisaOtp = async (req, res) => {
+  try {
+    const { email, code } = req.body;
+
+    const verification = await VerificationCode.findOne({ email, code, type: 'track' });
+    if (!verification || verification.expiresAt < new Date()) {
+      return res.status(400).json({ success: false, message: 'Invalid or expired verification code' });
+    }
+
+    const application = await VisaApplication.findOne({ 'personalDetails.email': email });
+    if (!application) {
+      return res.status(404).json({ success: false, message: 'Visa Application not found.' });
+    }
+
+    // Delete code after successful use
+    await VerificationCode.deleteOne({ _id: verification._id });
+
     res.json({
       success: true,
       application: {
@@ -212,9 +269,8 @@ exports.trackVisa = async (req, res) => {
         qrCodeUrl: application.qrCodeUrl
       }
     });
-
   } catch (error) {
-    console.error('Error tracking visa:', error);
+    console.error('Verify Track Visa OTP error:', error);
     res.status(500).json({ success: false, message: 'Server error tracking visa application.' });
   }
 };

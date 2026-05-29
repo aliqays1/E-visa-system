@@ -1,7 +1,8 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import { Link } from 'react-router-dom';
-import { GlobeAltIcon, MagnifyingGlassIcon, ExclamationTriangleIcon, CheckCircleIcon } from '@heroicons/react/24/outline';
+import OtpInput from '../components/OtpInput';
+import { GlobeAltIcon, MagnifyingGlassIcon, ExclamationTriangleIcon, CheckCircleIcon, EnvelopeIcon } from '@heroicons/react/24/outline';
 
 const TrackVisa = () => {
   const [email, setEmail] = useState('');
@@ -9,6 +10,18 @@ const TrackVisa = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [visaData, setVisaData] = useState(null);
+  
+  // OTP states
+  const [step, setStep] = useState(1);
+  const [otpCode, setOtpCode] = useState('');
+  const [timeLeft, setTimeLeft] = useState(120); // 2 minutes
+
+  useEffect(() => {
+    if (step === 2 && timeLeft > 0) {
+      const timerId = setTimeout(() => setTimeLeft(timeLeft - 1), 1000);
+      return () => clearTimeout(timerId);
+    }
+  }, [step, timeLeft]);
 
   const handleTrack = async (e) => {
     e.preventDefault();
@@ -22,11 +35,65 @@ const TrackVisa = () => {
         passportNumber: passportNumber.trim()
       });
 
-      if (res.data.success) {
+      if (res.data.success && res.data.requires_otp) {
+        setStep(2);
+        setTimeLeft(120);
+      } else if (res.data.success) {
+        // Fallback if no OTP required
         setVisaData(res.data.application);
+        setStep(3);
       }
     } catch (err) {
       setError(err.response?.data?.message || 'Failed to track visa. Please check your credentials.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleOtpSubmit = async (e) => {
+    e.preventDefault();
+    if (timeLeft === 0) {
+      setError('Verification code has expired. Please request a new one.');
+      return;
+    }
+
+    setError('');
+    setLoading(true);
+
+    try {
+      const res = await axios.post('/api/visa/verify-track', {
+        email: email.trim(),
+        code: otpCode
+      });
+
+      if (res.data.success) {
+        setVisaData(res.data.application);
+        setStep(3);
+      }
+    } catch (err) {
+      setError(err.response?.data?.message || 'Invalid or expired verification code.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleResend = async () => {
+    setError('');
+    setLoading(true);
+
+    try {
+      const res = await axios.post('/api/visa/track', {
+        email: email.trim(),
+        passportNumber: passportNumber.trim()
+      });
+
+      if (res.data.success && res.data.requires_otp) {
+        setTimeLeft(120);
+        setOtpCode('');
+        setError('');
+      }
+    } catch (err) {
+      setError(err.response?.data?.message || 'Failed to resend code.');
     } finally {
       setLoading(false);
     }
@@ -92,7 +159,7 @@ const TrackVisa = () => {
             </a>
           )}
           <button 
-            onClick={() => setVisaData(null)}
+            onClick={() => { setVisaData(null); setStep(1); setOtpCode(''); }}
             className="px-6 py-4 border-2 border-gray-200 text-gray-600 font-bold rounded-xl hover:bg-gray-50 transition-all"
           >
             Search Another
@@ -126,61 +193,125 @@ const TrackVisa = () => {
 
         <div className="w-full max-w-2xl z-10">
           
-          {/* Header Title */}
-          <div className="text-center mb-10">
-            <h1 className="text-4xl font-extrabold text-gray-900 tracking-tight mb-3">Track Visa Status</h1>
-            <p className="text-gray-500 font-medium text-lg">Enter your details below to check the real-time status of your application.</p>
-          </div>
+          {step === 1 && (
+            <>
+              {/* Header Title */}
+              <div className="text-center mb-10">
+                <h1 className="text-4xl font-extrabold text-gray-900 tracking-tight mb-3">Track Visa Status</h1>
+                <p className="text-gray-500 font-medium text-lg">Enter your details below to check the real-time status of your application.</p>
+              </div>
 
-          {!visaData ? (
-            /* Search Form */
-            <div className="bg-white rounded-3xl shadow-xl border border-gray-100 p-8 md:p-12">
-              {error && (
-                <div className="mb-8 bg-red-50 text-red-600 p-4 rounded-xl text-sm font-bold border border-red-100 text-center">
-                  {error}
-                </div>
-              )}
-              <form onSubmit={handleTrack} className="space-y-6">
-                <div>
-                  <label className="block text-xs font-bold uppercase tracking-wider text-gray-400 mb-2 ml-1">Email Address</label>
-                  <div className="relative">
-                    <MagnifyingGlassIcon className="h-5 w-5 text-gray-400 absolute left-4 top-1/2 transform -translate-y-1/2" />
+              {/* Search Form */}
+              <div className="bg-white rounded-3xl shadow-xl border border-gray-100 p-8 md:p-12">
+                {error && (
+                  <div className="mb-8 bg-red-50 text-red-600 p-4 rounded-xl text-sm font-bold border border-red-100 text-center">
+                    {error}
+                  </div>
+                )}
+                <form onSubmit={handleTrack} className="space-y-6">
+                  <div>
+                    <label className="block text-xs font-bold uppercase tracking-wider text-gray-400 mb-2 ml-1">Email Address</label>
+                    <div className="relative">
+                      <MagnifyingGlassIcon className="h-5 w-5 text-gray-400 absolute left-4 top-1/2 transform -translate-y-1/2" />
+                      <input 
+                        type="email" 
+                        className="w-full pl-12 pr-4 py-4 bg-gray-50 rounded-2xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all text-gray-800 text-lg"
+                        placeholder="e.g. your.email@example.com"
+                        value={email}
+                        onChange={(e) => setEmail(e.target.value)}
+                        required
+                      />
+                    </div>
+                  </div>
+                  <div>
+                    <label className="block text-xs font-bold uppercase tracking-wider text-gray-400 mb-2 ml-1">Passport Number</label>
                     <input 
-                      type="email" 
-                      className="w-full pl-12 pr-4 py-4 bg-gray-50 rounded-2xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all text-gray-800 text-lg"
-                      placeholder="e.g. your.email@example.com"
-                      value={email}
-                      onChange={(e) => setEmail(e.target.value)}
+                      type="text" 
+                      className="w-full px-5 py-4 bg-gray-50 rounded-2xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all text-gray-800 font-mono text-lg tracking-wider"
+                      placeholder="Enter passport number"
+                      value={passportNumber}
+                      onChange={(e) => setPassportNumber(e.target.value)}
                       required
                     />
                   </div>
+                  <button 
+                    type="submit" 
+                    disabled={loading}
+                    className="w-full mt-4 bg-gray-900 hover:bg-black text-white font-bold py-4 rounded-2xl shadow-xl shadow-gray-900/20 transition-all transform hover:-translate-y-1 disabled:opacity-50 disabled:transform-none text-lg tracking-wide"
+                  >
+                    {loading ? 'Searching...' : 'Check Status'}
+                  </button>
+                </form>
+              </div>
+            </>
+          )}
+
+          {step === 2 && (
+            <div className="bg-white rounded-3xl shadow-xl border border-gray-100 p-8 md:p-12 text-center flex flex-col items-center">
+              <div className="h-20 w-20 bg-blue-50 rounded-full flex items-center justify-center mb-6 shadow-inner">
+                <EnvelopeIcon className="h-10 w-10 text-primary" />
+              </div>
+              
+              <h1 className="text-3xl font-extrabold text-gray-900 mb-3 tracking-tight">Check your email</h1>
+              <p className="text-gray-500 font-medium leading-relaxed mb-8">
+                To protect your privacy, we sent a 6-digit verification code to <br/><span className="font-bold text-gray-800">{email}</span>
+              </p>
+
+              {error && (
+                <div className="mb-6 bg-red-50 text-red-600 p-4 rounded-xl text-sm border border-red-100 font-medium w-full max-w-sm">
+                  {error}
                 </div>
-                <div>
-                  <label className="block text-xs font-bold uppercase tracking-wider text-gray-400 mb-2 ml-1">Passport Number</label>
-                  <input 
-                    type="text" 
-                    className="w-full px-5 py-4 bg-gray-50 rounded-2xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all text-gray-800 font-mono text-lg tracking-wider"
-                    placeholder="Enter passport number"
-                    value={passportNumber}
-                    onChange={(e) => setPassportNumber(e.target.value)}
-                    required
-                  />
+              )}
+
+              <form onSubmit={handleOtpSubmit} className="space-y-6 w-full max-w-sm flex flex-col items-center">
+                <div className="w-full">
+                  <OtpInput value={otpCode} onChange={setOtpCode} />
+                  
+                  <div className="mt-6 flex flex-col items-center justify-center space-y-2 text-sm w-full">
+                    <span className={`font-medium ${timeLeft === 0 ? 'text-red-600' : 'text-gray-500'}`}>
+                      {timeLeft > 0 ? `Code expires in ${Math.floor(timeLeft / 60)}:${(timeLeft % 60).toString().padStart(2, '0')}` : 'Code has expired'}
+                    </span>
+                    {timeLeft === 0 ? (
+                      <button 
+                        type="button" 
+                        onClick={handleResend} 
+                        disabled={loading} 
+                        className="text-primary font-bold hover:text-blue-800 hover:underline transition-all"
+                      >
+                        Didn't receive the code? Resend now
+                      </button>
+                    ) : (
+                      <span className="text-gray-400">Didn't receive the code? Resend in {Math.floor(timeLeft / 60)}:${(timeLeft % 60).toString().padStart(2, '0')}</span>
+                    )}
+                  </div>
                 </div>
+
                 <button 
                   type="submit" 
-                  disabled={loading}
-                  className="w-full mt-4 bg-gray-900 hover:bg-black text-white font-bold py-4 rounded-2xl shadow-xl shadow-gray-900/20 transition-all transform hover:-translate-y-1 disabled:opacity-50 disabled:transform-none text-lg tracking-wide"
+                  disabled={loading || otpCode.length !== 6 || timeLeft === 0}
+                  className="w-full bg-primary hover:bg-blue-700 text-white font-bold py-4 rounded-xl transition-all shadow-lg shadow-blue-500/30 transform hover:-translate-y-0.5 disabled:opacity-50 disabled:cursor-not-allowed text-lg"
                 >
-                  {loading ? 'Searching...' : 'Check Status'}
+                  {loading ? 'Verifying...' : 'Verify Email'}
+                </button>
+
+                <button 
+                  type="button" 
+                  onClick={() => { setStep(1); setOtpCode(''); setLoading(false); setError(''); }}
+                  className="mt-4 text-gray-500 hover:text-gray-800 font-bold transition-all text-sm flex items-center"
+                >
+                  <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path></svg>
+                  Cancel Tracking
                 </button>
               </form>
             </div>
-          ) : (
+          )}
+
+          {step === 3 && visaData && (
             /* Results View */
             <div className="bg-white rounded-3xl shadow-xl border border-gray-100 overflow-hidden">
               <div className="bg-slate-900 p-8 text-white text-center relative">
                 <button 
-                  onClick={() => setVisaData(null)}
+                  onClick={() => { setVisaData(null); setStep(1); setOtpCode(''); }}
                   className="absolute top-6 right-6 text-white/50 hover:text-white"
                 >
                   ✕ Close
@@ -228,7 +359,7 @@ const TrackVisa = () => {
                     <h3 className="text-red-800 font-bold mb-2">Application Rejected</h3>
                     <p className="text-red-600 text-sm">{visaData.rejectionReason || 'Requirements not met.'}</p>
                     <button 
-                      onClick={() => setVisaData(null)}
+                      onClick={() => { setVisaData(null); setStep(1); setOtpCode(''); }}
                       className="mt-6 px-6 py-3 bg-white border border-gray-200 text-gray-700 font-bold rounded-xl hover:bg-gray-50 transition-colors"
                     >
                       Search Another
@@ -243,7 +374,7 @@ const TrackVisa = () => {
                       <p className="text-blue-700 text-sm">Your application is currently being reviewed by an immigration officer.</p>
                     </div>
                     <button 
-                      onClick={() => setVisaData(null)}
+                      onClick={() => { setVisaData(null); setStep(1); setOtpCode(''); }}
                       className="px-6 py-3 bg-white border border-blue-200 text-blue-700 font-bold rounded-xl hover:bg-blue-50 transition-colors"
                     >
                       Go Back

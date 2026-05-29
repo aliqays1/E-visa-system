@@ -22,6 +22,7 @@ router.put('/:id/status', protect, officerOnly, visaController.updateStatus);
 
 // Public Visa Tracking
 router.post('/track', visaController.trackVisa);
+router.post('/verify-track', visaController.verifyTrackVisaOtp);
 
 // QR Code Public/Officer Verification
 router.get('/verify/:token', authOptional, visaController.verifyVisaToken);
