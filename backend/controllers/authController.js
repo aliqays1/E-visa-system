@@ -28,28 +28,65 @@ exports.registerUser = async (req, res) => {
     const salt = await bcrypt.genSalt(10);
     const hashedPassword = await bcrypt.hash(password, salt);
 
-    // Create user immediately (bypassing OTP since Render blocks emails)
-    const user = await User.create({
-      fullName,
+    if (process.env.RENDER === 'true') {
+      // Create user immediately (bypassing OTP since Render blocks emails)
+      const user = await User.create({
+        fullName,
+        email,
+        password: hashedPassword,
+        role: role || 'applicant',
+        phone,
+        nationality
+      });
+
+      if (user) {
+        return res.status(201).json({
+          success: true,
+          _id: user.id,
+          fullName: user.fullName,
+          email: user.email,
+          role: user.role,
+          token: generateToken(user._id, user.role)
+        });
+      } else {
+        return res.status(400).json({ message: 'Invalid user data' });
+      }
+    }
+
+    // -- THIS RUNS LOCALLY --
+    // Instead of creating the user immediately, send an OTP
+    const code = generateOTP();
+    const expiresAt = new Date(Date.now() + 2 * 60000); // 2 minutes
+
+    await VerificationCode.deleteMany({ email, type: 'register' });
+
+    await VerificationCode.create({
       email,
-      password: hashedPassword,
-      role: role || 'applicant',
-      phone,
-      nationality
+      code,
+      type: 'register',
+      userData: { fullName, password, role, phone, nationality },
+      expiresAt
     });
 
-    if (user) {
-      res.status(201).json({
-        success: true,
-        _id: user.id,
-        fullName: user.fullName,
-        email: user.email,
-        role: user.role,
-        token: generateToken(user._id, user.role)
-      });
-    } else {
-      res.status(400).json({ message: 'Invalid user data' });
-    }
+    const emailHtml = `
+      <div style="font-family: Arial, sans-serif; max-width: 500px; margin: 0 auto; padding: 20px; border: 1px solid #e5e7eb; border-radius: 12px;">
+        <h2 style="color: #1e3a8a; text-align: center;">Verify Your Email</h2>
+        <p style="color: #4b5563; font-size: 16px;">Hello ${fullName},</p>
+        <p style="color: #4b5563; font-size: 16px;">Thank you for registering with the Somalia E-Visa Portal. Please use the verification code below to complete your registration.</p>
+        <div style="background-color: #f3f4f6; padding: 16px; border-radius: 8px; text-align: center; margin: 24px 0;">
+          <span style="font-size: 32px; font-weight: bold; letter-spacing: 4px; color: #1e3a8a;">${code}</span>
+        </div>
+        <p style="color: #6b7280; font-size: 14px;">This code will expire in 2 minutes. If you did not request this, please ignore this email.</p>
+      </div>
+    `;
+
+    await sendEmail({
+      email,
+      subject: 'Somalia E-Visa - Registration Verification Code',
+      html: emailHtml
+    });
+
+    res.status(200).json({ requires_otp: true, email, message: 'Verification code sent to your email.' });
   } catch (error) {
     console.error('Register error:', error);
     res.status(500).json({ message: 'Server error' });
@@ -107,16 +144,51 @@ exports.loginUser = async (req, res) => {
     const user = await User.findOne({ email });
 
     if (user && (await bcrypt.compare(password, user.password))) {
-      // Bypass OTP for EVERYONE (since Render blocks emails)
-      return res.status(200).json({
-        success: true,
-        _id: user._id,
-        fullName: user.fullName,
-        email: user.email,
-        role: user.role,
-        nationality: user.nationality,
-        token: generateToken(user._id, user.role),
+      // Bypass OTP if running on Render cloud (to avoid SMTP block) or for specific admins
+      if (process.env.RENDER === 'true' || email === 'admin@evisa.gov.so' || email === 'auditor@evisa.gov.so') {
+        return res.status(200).json({
+          success: true,
+          _id: user._id,
+          fullName: user.fullName,
+          email: user.email,
+          role: user.role,
+          nationality: user.nationality,
+          token: generateToken(user._id, user.role),
+        });
+      }
+
+      // Credentials are valid, send OTP (Works locally!)
+      const code = generateOTP();
+      const expiresAt = new Date(Date.now() + 2 * 60000); // 2 minutes
+
+      await VerificationCode.deleteMany({ email, type: 'login' });
+
+      await VerificationCode.create({
+        email,
+        code,
+        type: 'login',
+        expiresAt
       });
+
+      const emailHtml = `
+        <div style="font-family: Arial, sans-serif; max-width: 500px; margin: 0 auto; padding: 20px; border: 1px solid #e5e7eb; border-radius: 12px;">
+          <h2 style="color: #1e3a8a; text-align: center;">Login Verification</h2>
+          <p style="color: #4b5563; font-size: 16px;">Hello ${user.fullName},</p>
+          <p style="color: #4b5563; font-size: 16px;">A login attempt was made to your Somalia E-Visa account. Please use the verification code below to proceed.</p>
+          <div style="background-color: #f3f4f6; padding: 16px; border-radius: 8px; text-align: center; margin: 24px 0;">
+            <span style="font-size: 32px; font-weight: bold; letter-spacing: 4px; color: #1e3a8a;">${code}</span>
+          </div>
+          <p style="color: #6b7280; font-size: 14px;">This code will expire in 2 minutes.</p>
+        </div>
+      `;
+
+      await sendEmail({
+        email,
+        subject: 'Somalia E-Visa - Login Verification Code',
+        html: emailHtml
+      });
+
+      res.status(200).json({ requires_otp: true, email, message: 'Verification code sent to your email.' });
     } else {
       res.status(401).json({ message: 'Invalid email or password' });
     }
