@@ -338,8 +338,8 @@ const Register = () => {
         {/* Unsplash Image Background */}
         <div className="absolute inset-0">
           <img 
-            src="https://images.unsplash.com/photo-1542361345-89e58247f2d5?q=80&w=2070&auto=format&fit=crop" 
-            alt="Beautiful landscape" 
+            src="https://images.unsplash.com/photo-1436491865332-7a61a109cc05?q=80&w=2074&auto=format&fit=crop" 
+            alt="Airplane flying over clouds" 
             className="object-cover w-full h-full scale-105"
           />
         </div>
