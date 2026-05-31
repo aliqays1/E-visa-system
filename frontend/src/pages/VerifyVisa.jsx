@@ -232,8 +232,8 @@ const VerifyVisa = () => {
                   <p className="text-gray-800 font-medium">{application.personalDetails?.nationality}</p>
                 </div>
                 <div>
-                  <p className="text-xs text-gray-500 uppercase font-bold tracking-wider mb-1">Date of Birth</p>
-                  <p className="text-gray-800 font-medium">{application.personalDetails?.dateOfBirth}</p>
+                  <p className="text-xs text-gray-500 uppercase font-bold tracking-wider mb-1">Duration of Stay</p>
+                  <p className="text-gray-800 font-medium">{application.visaDuration ? `${application.visaDuration} Days` : 'N/A'}</p>
                 </div>
               </div>
             </div>
