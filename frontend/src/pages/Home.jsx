@@ -1,5 +1,6 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
+import bannerImage from '../assets/The Queen of the Skies_ Emirates A380 Golden Hour Departure ✈️🌇.jpg';
 import { 
   PhoneIcon,
   EnvelopeIcon,
@@ -19,18 +20,38 @@ const Home = () => {
       <header className="bg-white shadow-sm border-b border-gray-100 relative z-10">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between h-24 items-center">
-            <div className="flex-shrink-0 flex items-center cursor-pointer">
-              <GlobeAltIcon className="h-12 w-12 text-primary mr-3" />
+            <div className="flex-shrink-0 flex items-center cursor-pointer group">
+              <div className="relative h-12 w-12 mr-3 flex items-center justify-center bg-blue-50 rounded-full border-2 border-blue-100 group-hover:border-blue-300 transition-colors duration-300 shadow-sm">
+                <svg viewBox="0 0 100 100" className="w-8 h-8 text-primary animate-[spin_20s_linear_infinite]">
+                  <circle cx="50" cy="50" r="45" fill="none" stroke="currentColor" strokeWidth="6" strokeDasharray="60 10" />
+                  <circle cx="50" cy="50" r="30" fill="none" stroke="currentColor" strokeWidth="4" opacity="0.6" />
+                  <ellipse cx="50" cy="50" rx="45" ry="15" fill="none" stroke="currentColor" strokeWidth="3" opacity="0.4" />
+                  <ellipse cx="50" cy="50" rx="15" ry="45" fill="none" stroke="currentColor" strokeWidth="3" opacity="0.4" />
+                  <circle cx="50" cy="50" r="8" fill="currentColor" />
+                </svg>
+              </div>
               <div className="flex flex-col">
                 <span className="font-extrabold text-2xl text-gray-900 tracking-tight leading-none">Somalia</span>
                 <span className="font-medium text-sm text-primary tracking-widest uppercase">E-Visa Portal</span>
               </div>
             </div>
-            <nav className="hidden md:flex space-x-10 font-semibold text-[15px]">
-              <Link to="/" className="text-primary">Home</Link>
-              <a href="#visa-types" className="text-gray-700 hover:text-primary transition-colors">Visa Types</a>
-              <a href="#guidelines" className="text-gray-700 hover:text-primary transition-colors">Guidelines</a>
-              <a href="#contact" className="text-gray-700 hover:text-primary transition-colors">Contact</a>
+            <nav className="hidden md:flex items-center space-x-12">
+              <Link to="/" className="relative text-primary font-black uppercase tracking-[0.15em] text-sm group py-2">
+                Home
+                <span className="absolute bottom-0 left-0 w-full h-[3px] bg-primary rounded-full shadow-[0_0_10px_rgba(59,130,246,0.8)]"></span>
+              </Link>
+              <a href="#visa-types" className="relative text-slate-500 hover:text-slate-900 transition-colors font-extrabold uppercase tracking-[0.15em] text-sm group py-2">
+                Visa Types
+                <span className="absolute bottom-0 left-0 w-full h-[3px] bg-primary rounded-full transform scale-x-0 group-hover:scale-x-100 transition-transform duration-300 shadow-[0_0_10px_rgba(59,130,246,0.8)] origin-left"></span>
+              </a>
+              <a href="#guidelines" className="relative text-slate-500 hover:text-slate-900 transition-colors font-extrabold uppercase tracking-[0.15em] text-sm group py-2">
+                Guidelines
+                <span className="absolute bottom-0 left-0 w-full h-[3px] bg-primary rounded-full transform scale-x-0 group-hover:scale-x-100 transition-transform duration-300 shadow-[0_0_10px_rgba(59,130,246,0.8)] origin-left"></span>
+              </a>
+              <a href="#contact" className="relative text-slate-500 hover:text-slate-900 transition-colors font-extrabold uppercase tracking-[0.15em] text-sm group py-2">
+                Contact
+                <span className="absolute bottom-0 left-0 w-full h-[3px] bg-primary rounded-full transform scale-x-0 group-hover:scale-x-100 transition-transform duration-300 shadow-[0_0_10px_rgba(59,130,246,0.8)] origin-left"></span>
+              </a>
             </nav>
             <div className="flex items-center space-x-6">
               <div className="hidden md:flex items-center bg-primary text-white px-6 py-3 rounded-lg shadow-lg shadow-blue-500/20">
@@ -320,8 +341,8 @@ const Home = () => {
          <div className="absolute inset-0">
           <img 
             className="w-full h-full object-cover opacity-20"
-            src="https://images.unsplash.com/photo-1555529733-0e670560f7e1?auto=format&fit=crop&q=80" 
-            alt="Passports" 
+            src={bannerImage} 
+            alt="Emirates A380" 
           />
         </div>
         <div className="relative max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center flex flex-col items-center">

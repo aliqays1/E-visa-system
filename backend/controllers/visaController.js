@@ -140,7 +140,8 @@ exports.updateStatus = async (req, res) => {
 
       const name = application.personalDetails ? `${application.personalDetails.firstName || ''} ${application.personalDetails.lastName || ''}`.trim() : 'N/A';
       // The QR payload is JUST the verification URL so mobile phones will directly open it.
-      const qrData = `http://192.168.100.159:5173/verify?token=${secureToken}`;
+      const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
+      const qrData = `${frontendUrl}/verify?token=${secureToken}`;
       
       const qrCodeBase64 = await QRCode.toDataURL(qrData);
       application.qrCodeUrl = qrCodeBase64;
