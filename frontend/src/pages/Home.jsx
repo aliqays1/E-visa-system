@@ -54,13 +54,16 @@ const Home = () => {
               </a>
             </nav>
             <div className="flex items-center space-x-6">
-              <div className="hidden md:flex items-center bg-primary text-white px-6 py-3 rounded-lg shadow-lg shadow-blue-500/20">
+              <a 
+                href="mailto:support.evisa@gmail.com?subject=E-Visa%20Support%20Request&body=%2A%20Full%20Name%0D%0A%2A%20Description%20of%20the%20Issue"
+                className="hidden md:flex items-center bg-primary text-white px-6 py-3 rounded-lg shadow-lg shadow-blue-500/20 hover:bg-blue-700 transition-colors cursor-pointer"
+              >
                 <EnvelopeIcon className="h-6 w-6 mr-3" />
                 <div>
                   <div className="text-[11px] text-blue-100 font-medium uppercase tracking-wider">Have Any Questions?</div>
                   <div className="font-bold text-base leading-tight">support.evisa@gmail.com</div>
                 </div>
-              </div>
+              </a>
               <Link to="/login" className="px-6 md:px-8 py-2.5 rounded-full bg-primary/10 text-primary font-bold border border-primary/20 hover:bg-primary hover:text-white transition-all duration-300 shadow-sm hover:shadow-md transform hover:-translate-y-0.5 flex items-center gap-2">
                 <svg className="w-4 h-4 hidden sm:block" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M11 16l-4-4m0 0l4-4m-4 4h14m-5 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h7a3 3 0 013 3v1"></path></svg>
                 Login
