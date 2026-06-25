@@ -5,6 +5,20 @@ const QRCode = require('qrcode');
 const { v4: uuidv4 } = require('uuid');
 const { generateVisaPdf } = require('../utils/pdfGenerator');
 const ActivityLog = require('../models/ActivityLog');
+const os = require('os');
+
+// Helper to get the local network IP address
+function getLocalIp() {
+  const interfaces = os.networkInterfaces();
+  for (const name of Object.keys(interfaces)) {
+    for (const iface of interfaces[name]) {
+      if (iface.family === 'IPv4' && !iface.internal) {
+        return iface.address;
+      }
+    }
+  }
+  return 'localhost';
+}
 
 // Apply for a Visa
 exports.applyVisa = async (req, res) => {
@@ -140,7 +154,19 @@ exports.updateStatus = async (req, res) => {
 
       const name = application.personalDetails ? `${application.personalDetails.firstName || ''} ${application.personalDetails.lastName || ''}`.trim() : 'N/A';
       // The QR payload is JUST the verification URL so mobile phones will directly open it.
-      const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
+      let frontendUrl = req.headers.origin || process.env.FRONTEND_URL || 'http://localhost:5173';
+      
+      // If the URL contains localhost or 127.0.0.1, replace it with the actual local IP 
+      // so that external devices (like smartphones) can scan the QR code and reach the server.
+      if (frontendUrl.includes('localhost') || frontendUrl.includes('127.0.0.1')) {
+        const localIp = getLocalIp();
+        frontendUrl = frontendUrl.replace(/localhost|127\.0\.0\.1/, localIp);
+      }
+      
+      // Additionally, if the FRONTEND_URL from .env has an old IP but we accessed via a different IP,
+      // it's generally safer to just rely on the origin. If there's no origin and it falls back to a 
+      // local IP, we might want to ensure it's the current IP, but the above localhost check is the most critical.
+      
       const qrData = `${frontendUrl}/verify?token=${secureToken}`;
       
       const qrCodeBase64 = await QRCode.toDataURL(qrData);
