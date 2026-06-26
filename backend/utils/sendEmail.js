@@ -13,9 +13,11 @@ const sendEmail = async (options) => {
   });
 
   const mailOptions = {
-    from: process.env.EMAIL_USER ? `Somalia E-Visa Portal <${process.env.EMAIL_USER}>` : 'Somalia E-Visa Portal <noreply@evisa.somalia>',
+    from: process.env.EMAIL_USER ? `"Somalia E-Visa Portal" <${process.env.EMAIL_USER}>` : '"Somalia E-Visa Portal" <noreply@evisa.somalia>',
     to: options.email,
+    replyTo: process.env.EMAIL_USER || 'noreply@evisa.somalia',
     subject: options.subject,
+    text: options.html ? options.html.replace(/<[^>]*>?/gm, '').replace(/&nbsp;/g, ' ').trim() : '',
     html: options.html,
   };
 

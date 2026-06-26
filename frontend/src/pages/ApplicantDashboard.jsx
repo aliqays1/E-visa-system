@@ -36,7 +36,7 @@ const ApplicantDashboard = () => {
 
   if (authLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-[#f4f7fa]">
+      <div className="min-h-screen flex items-center justify-center bg-slate-100">
          <div className="animate-spin rounded-full h-12 w-12 border-4 border-blue-600 border-t-transparent"></div>
       </div>
     );
@@ -132,10 +132,10 @@ const ApplicantDashboard = () => {
   const approvedApps = applications.filter(app => app.applicationStatus === 'Approved').length;
 
   return (
-    <div className="min-h-screen bg-[#f8fafc] pb-20">
-      <header className="bg-white shadow-sm border-b border-gray-100 py-4 px-4 md:px-8 flex flex-col md:flex-row justify-between items-center gap-4 relative z-10">
+    <div className="min-h-screen bg-slate-100 pb-20">
+      <header className="bg-slate-50 shadow-sm border-b border-gray-200 py-4 px-4 md:px-8 flex flex-col md:flex-row justify-between items-center gap-4 relative z-10">
         <div className="flex items-center space-x-3 text-center md:text-left">
-          <span className="text-2xl">🇸🇴</span>
+          <img src="/logo.png" alt="Logo" className="h-10 w-10 object-contain rounded-full shadow-sm bg-white p-0.5" />
           <h1 className="text-lg md:text-xl font-bold text-gray-900 tracking-tight">Somalia E-Visa Applicant Portal</h1>
         </div>
         <div className="flex flex-wrap justify-center items-center gap-3 md:space-x-6">
@@ -155,17 +155,20 @@ const ApplicantDashboard = () => {
         
         {/* KPI Cards */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-           <div className="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm border-l-4 border-l-blue-500">
-             <div className="text-xs text-gray-400 font-bold uppercase tracking-wider mb-1">Total Applications</div>
-             <div className="text-3xl font-extrabold text-gray-900">{totalApps}</div>
+           <div className="bg-gradient-to-br from-blue-700 to-blue-900 p-6 rounded-2xl border-none shadow-lg hover:shadow-xl hover:-translate-y-1 transition-all duration-300 relative overflow-hidden">
+             <div className="absolute top-0 right-0 -mr-4 -mt-4 w-24 h-24 bg-white/10 rounded-full blur-xl"></div>
+             <div className="text-xs text-blue-200 font-bold uppercase tracking-wider mb-1">Total Applications</div>
+             <div className="text-4xl font-extrabold text-white">{totalApps}</div>
            </div>
-           <div className="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm border-l-4 border-l-yellow-500">
-             <div className="text-xs text-gray-400 font-bold uppercase tracking-wider mb-1">Pending Review</div>
-             <div className="text-3xl font-extrabold text-gray-900">{pendingApps}</div>
+           <div className="bg-gradient-to-br from-amber-500 to-amber-600 p-6 rounded-2xl border-none shadow-lg hover:shadow-xl hover:-translate-y-1 transition-all duration-300 relative overflow-hidden">
+             <div className="absolute top-0 right-0 -mr-4 -mt-4 w-24 h-24 bg-white/20 rounded-full blur-xl"></div>
+             <div className="text-xs text-amber-100 font-bold uppercase tracking-wider mb-1">Pending Review</div>
+             <div className="text-4xl font-extrabold text-white">{pendingApps}</div>
            </div>
-           <div className="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm border-l-4 border-l-green-500">
-             <div className="text-xs text-gray-400 font-bold uppercase tracking-wider mb-1">Approved Visas</div>
-             <div className="text-3xl font-extrabold text-gray-900">{approvedApps}</div>
+           <div className="bg-gradient-to-br from-emerald-600 to-emerald-800 p-6 rounded-2xl border-none shadow-lg hover:shadow-xl hover:-translate-y-1 transition-all duration-300 relative overflow-hidden">
+             <div className="absolute top-0 right-0 -mr-4 -mt-4 w-24 h-24 bg-white/10 rounded-full blur-xl"></div>
+             <div className="text-xs text-emerald-100 font-bold uppercase tracking-wider mb-1">Approved Visas</div>
+             <div className="text-4xl font-extrabold text-white">{approvedApps}</div>
            </div>
         </div>
 
@@ -188,18 +191,18 @@ const ApplicantDashboard = () => {
         )}
 
         {/* Applications List */}
-        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
-          <div className="p-6 border-b border-gray-100">
-            <h2 className="text-xl font-bold text-gray-900">Your Visa Records</h2>
+        <div className="bg-slate-800 rounded-3xl border border-slate-700 shadow-2xl transition-shadow duration-300 overflow-hidden mt-4">
+          <div className="p-6 border-b border-slate-700 bg-slate-800">
+             <h2 className="text-xl font-bold text-white tracking-tight">Your Visa Records</h2>
           </div>
 
           {loading ? (
-            <div className="text-center py-16 text-gray-500">Loading visa applications...</div>
+            <div className="text-center py-16 text-slate-400">Loading visa applications...</div>
           ) : applications.length > 0 ? (
-            <div className="overflow-x-auto">
+            <div className="overflow-x-auto bg-slate-800">
               <table className="w-full text-left border-collapse">
                 <thead>
-                  <tr className="bg-gray-50/70 border-b border-gray-100 text-xs font-bold text-gray-500 uppercase">
+                  <tr className="bg-slate-700/40 text-slate-300 text-xs font-bold uppercase tracking-wider border-b border-slate-700">
                     <th className="p-4 pl-6">Visa Type</th>
                     <th className="p-4">Reference ID</th>
                     <th className="p-4">Submission Date</th>
@@ -208,24 +211,24 @@ const ApplicantDashboard = () => {
                     <th className="p-4 text-right pr-6">Action</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-gray-100 text-sm">
+                <tbody className="divide-y divide-slate-700/50 text-sm">
                   {applications.map((app) => (
-                    <tr key={app._id} className="hover:bg-gray-50/40">
-                      <td className="p-4 pl-6 font-semibold text-gray-800">{app.visaType} Visa</td>
-                      <td className="p-4 font-mono text-xs text-gray-500">{app._id}</td>
-                      <td className="p-4 text-gray-600">{new Date(app.createdAt).toLocaleDateString()}</td>
+                    <tr key={app._id} className="hover:bg-slate-700/30 transition-colors">
+                      <td className="p-4 pl-6 font-semibold text-slate-100">{app.visaType} Visa</td>
+                      <td className="p-4 font-mono text-xs text-slate-400">{app._id}</td>
+                      <td className="p-4 text-slate-300">{new Date(app.createdAt).toLocaleDateString()}</td>
                       <td className="p-4">
-                        <span className={`px-2 py-1 rounded-md text-xs font-bold ${
-                          app.paymentStatus === 'Completed' ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'
+                        <span className={`px-2 py-1 rounded-md text-xs font-bold border ${
+                          app.paymentStatus === 'Completed' ? 'bg-emerald-900/30 text-emerald-400 border-emerald-800/50' : 'bg-slate-700 text-slate-300 border-slate-600'
                         }`}>
                           {app.paymentStatus === 'Completed' ? 'Paid' : 'Pending'}
                         </span>
                       </td>
                       <td className="p-4">
-                        <span className={`px-3 py-1 rounded-full text-xs font-bold uppercase ${
-                          app.applicationStatus === 'Approved' ? 'bg-green-50 text-green-700' :
-                          app.applicationStatus === 'Rejected' ? 'bg-red-50 text-red-700' :
-                          'bg-yellow-50 text-yellow-700'
+                        <span className={`px-3 py-1 rounded-full text-xs font-bold uppercase border ${
+                          app.applicationStatus === 'Approved' ? 'bg-emerald-900/30 text-emerald-400 border-emerald-800/50' :
+                          app.applicationStatus === 'Rejected' ? 'bg-rose-900/30 text-rose-400 border-rose-800/50' :
+                          'bg-amber-900/30 text-amber-400 border-amber-800/50'
                         }`}>
                           {app.applicationStatus}
                         </span>
@@ -234,13 +237,13 @@ const ApplicantDashboard = () => {
                         {app.applicationStatus === 'Approved' && (
                           <button 
                             onClick={() => setSelectedVisa(app)}
-                            className="text-xs px-3.5 py-1.5 bg-green-600 text-white hover:bg-green-700 font-bold rounded-lg transition-colors"
+                            className="text-xs px-3.5 py-1.5 bg-emerald-600 text-white hover:bg-emerald-500 font-bold rounded-lg transition-colors shadow-sm"
                           >
                             View e-Visa
                           </button>
                         )}
                         {app.applicationStatus === 'Rejected' && (
-                          <span className="text-xs text-red-600 font-medium bg-red-50 px-3 py-1.5 rounded-lg inline-block max-w-[200px] truncate" title={app.rejectionReason || 'Requirements not met.'}>
+                          <span className="text-xs text-rose-400 font-medium bg-rose-900/20 border border-rose-800/30 px-3 py-1.5 rounded-lg inline-block max-w-[200px] truncate" title={app.rejectionReason || 'Requirements not met.'}>
                             {app.rejectionReason || 'Requirements not met.'}
                           </span>
                         )}

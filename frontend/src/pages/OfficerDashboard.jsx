@@ -168,7 +168,7 @@ const OfficerDashboard = () => {
   }
 
   const totalApps = applications.length;
-  const pendingApps = applications.filter(app => ['Submitted', 'Under Review', 'Needs Revision'].includes(app.applicationStatus)).length;
+  const pendingApps = applications.filter(app => ['Submitted', 'Pending', 'Under Review', 'Needs Revision'].includes(app.applicationStatus)).length;
   const approvedApps = applications.filter(app => app.applicationStatus === 'Approved').length;
   const rejectedApps = applications.filter(app => app.applicationStatus === 'Rejected').length;
   const overstays = applications.filter(app => app.overstayAlert).length;
@@ -526,7 +526,7 @@ const OfficerDashboard = () => {
                 </div>
               )}
 
-              {['Submitted', 'Under Review', 'Needs Revision'].includes(selectedApplication.applicationStatus) && (
+              {['Submitted', 'Pending', 'Under Review', 'Needs Revision'].includes(selectedApplication.applicationStatus) && (
                 <div className="border-t border-gray-100 pt-6 space-y-4 bg-gray-50 p-4 rounded-xl">
                   <div className="grid grid-cols-1 gap-4">
                     <div>
@@ -541,7 +541,7 @@ const OfficerDashboard = () => {
             <div className="bg-gray-50 px-6 py-4 flex justify-between items-center border-t border-gray-100">
               <span className="text-xs font-bold text-gray-500 uppercase tracking-wider">Status: <span className="text-gray-700">{selectedApplication.applicationStatus}</span></span>
               
-              {['Submitted', 'Under Review', 'Needs Revision'].includes(selectedApplication.applicationStatus) ? (
+              {['Submitted', 'Pending', 'Under Review', 'Needs Revision'].includes(selectedApplication.applicationStatus) ? (
                 <div className="space-x-3">
                   <button onClick={() => handleUpdateStatus(selectedApplication._id, 'Rejected')} className="px-6 py-2 bg-red-600 hover:bg-red-700 text-white font-bold text-sm rounded-xl transition-colors shadow-md">Reject</button>
                   <button onClick={() => handleUpdateStatus(selectedApplication._id, 'Needs Revision')} className="px-6 py-2 bg-orange-500 hover:bg-orange-600 text-white font-bold text-sm rounded-xl transition-colors shadow-md">Request Revision</button>

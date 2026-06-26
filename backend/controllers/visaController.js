@@ -4,6 +4,7 @@ const sendEmail = require('../utils/sendEmail');
 const QRCode = require('qrcode');
 const { v4: uuidv4 } = require('uuid');
 const { generateVisaPdf } = require('../utils/pdfGenerator');
+const emailTemplates = require('../utils/emailTemplates');
 const ActivityLog = require('../models/ActivityLog');
 const os = require('os');
 
@@ -47,15 +48,7 @@ exports.applyVisa = async (req, res) => {
     const passportNumber = parsedPersonalDetails?.passportNumber;
     
     if (passportNumber) {
-      // 2. Duplicate passport detection (Check if there is an active application)
-      const existingApp = await VisaApplication.findOne({ 
-        'personalDetails.passportNumber': passportNumber,
-        applicationStatus: { $in: ['Submitted', 'Under Review', 'Needs Revision'] }
-      });
-      
-      if (existingApp) {
-        return res.status(400).json({ success: false, message: 'An active application with this passport number already exists.' });
-      }
+      // 2. Duplicate passport detection removed as per user request
     }
     // ---------------------------------------
 
@@ -79,6 +72,20 @@ exports.applyVisa = async (req, res) => {
 
     const savedApplication = await newApplication.save();
 
+    // Send Application Received Email asynchronously
+    if (parsedPersonalDetails && parsedPersonalDetails.email) {
+      try {
+        const applicantName = `${parsedPersonalDetails.firstName || ''} ${parsedPersonalDetails.lastName || ''}`.trim();
+        await sendEmail({
+          email: parsedPersonalDetails.email,
+          subject: 'Somalia E-Visa Application Received',
+          html: emailTemplates.getApplicationReceivedTemplate(applicantName, savedApplication._id.toString())
+        });
+      } catch (emailError) {
+        console.error('Non-fatal error: Failed to send application received email.', emailError);
+      }
+    }
+
     // Create Payment record if applicable
     if (amountPaid && amountPaid > 0) {
       const Payment = require('../models/Payment');
@@ -97,7 +104,7 @@ exports.applyVisa = async (req, res) => {
     res.status(201).json({ success: true, application: savedApplication });
   } catch (error) {
     console.error('Error applying for visa:', error);
-    res.status(500).json({ success: false, message: 'Server error creating visa application' });
+    res.status(500).json({ success: false, message: 'Server error creating visa application: ' + error.message });
   }
 };
 
@@ -177,9 +184,41 @@ exports.updateStatus = async (req, res) => {
       application.pdfUrl = pdfPath;
     } else if (status === 'Rejected') {
       application.rejectionReason = rejectionReason || 'Requirements not met.';
+    } else if (status === 'Needs Revision') {
+      application.rejectionReason = rejectionReason || 'Please provide additional information.';
     }
 
     const updated = await application.save();
+
+    // Send Status Update Email asynchronously
+    if (application.personalDetails && application.personalDetails.email) {
+      try {
+        const applicantName = `${application.personalDetails.firstName || ''} ${application.personalDetails.lastName || ''}`.trim();
+        let emailSubject = '';
+        let emailHtml = '';
+
+        if (status === 'Approved') {
+          emailSubject = 'Your Somalia E-Visa Has Been Approved';
+          emailHtml = emailTemplates.getVisaApprovedTemplate(applicantName);
+        } else if (status === 'Rejected') {
+          emailSubject = 'Somalia E-Visa Application Update';
+          emailHtml = emailTemplates.getVisaRejectedTemplate(applicantName, application.rejectionReason);
+        } else if (status === 'Needs Revision') {
+          emailSubject = 'Additional Information Required';
+          emailHtml = emailTemplates.getNeedsRevisionTemplate(applicantName, application.rejectionReason);
+        }
+
+        if (emailHtml) {
+          await sendEmail({
+            email: application.personalDetails.email,
+            subject: emailSubject,
+            html: emailHtml
+          });
+        }
+      } catch (emailError) {
+        console.error('Non-fatal error: Failed to send status update email.', emailError);
+      }
+    }
 
     await ActivityLog.create({
       officerId: req.user._id,

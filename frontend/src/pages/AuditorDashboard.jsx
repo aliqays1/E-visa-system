@@ -73,8 +73,10 @@ const AuditorDashboard = () => {
       )}
       <aside className={`w-64 bg-[#1e293b] text-white flex flex-col shadow-xl z-50 fixed lg:sticky top-0 h-screen transition-transform duration-300 ${mobileMenuOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}`}>
         <div className="p-6 flex items-center space-x-3 border-b border-gray-700 bg-[#0f172a]">
-          <ShieldCheckIcon className="h-8 w-8 text-indigo-400" />
-          <h2 className="text-xl font-extrabold tracking-tight">Oversight</h2>
+          <div className="bg-white p-1.5 rounded-xl shadow-sm flex items-center justify-center">
+            <img src="/logo.png" alt="Logo" className="h-7 w-7 object-contain" />
+          </div>
+          <h2 className="text-xl font-extrabold tracking-tight text-white">Auditor Portal</h2>
         </div>
         
         <div className="px-4 py-4 text-xs font-bold text-gray-400 uppercase tracking-wider">

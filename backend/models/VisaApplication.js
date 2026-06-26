@@ -14,7 +14,7 @@ const visaApplicationSchema = new mongoose.Schema({
     transactionId: String,
     amountPaid: Number
   },
-  applicationStatus: { type: String, enum: ['Submitted', 'Under Review', 'Needs Revision', 'Approved', 'Rejected', 'Expired'], default: 'Submitted' },
+  applicationStatus: { type: String, enum: ['Submitted', 'Pending', 'Under Review', 'Needs Revision', 'Approved', 'Rejected', 'Expired'], default: 'Submitted' },
   officerId: { type: mongoose.Schema.Types.ObjectId, ref: 'User' }, // The officer who processed it
   rejectionReason: { type: String },
   visaDuration: { type: Number }, // in days
