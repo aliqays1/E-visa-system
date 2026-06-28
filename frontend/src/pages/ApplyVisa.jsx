@@ -174,10 +174,10 @@ const ApplyVisa = () => {
       <div className="max-w-6xl mx-auto flex flex-col lg:flex-row gap-8 items-start">
         
         {/* Left Column: Interactive Stepper Checklist */}
-        <div className="w-full lg:w-80 bg-[#f4f7fb]/95 backdrop-blur-2xl rounded-3xl border border-white/60 shadow-[0_8px_30px_rgb(0,0,0,0.06)] p-4 lg:p-6 shrink-0 relative lg:sticky lg:top-8">
-          <div className="mb-6 border-b pb-4">
-            <h4 className="text-xs uppercase font-extrabold text-primary tracking-wider">Application Stages</h4>
-            <p className="text-gray-500 text-xs mt-1">Track your progress and upcoming steps</p>
+        <div className="w-full lg:w-80 bg-gradient-to-b from-[#25303f] to-[#161d26] backdrop-blur-2xl rounded-3xl border border-slate-700/60 shadow-[0_8px_30px_rgba(0,0,0,0.15)] p-4 lg:p-6 shrink-0 relative lg:sticky lg:top-8">
+          <div className="mb-6 border-b border-slate-700/60 pb-4">
+            <h4 className="text-xs uppercase font-extrabold text-indigo-400 tracking-wider">Application Stages</h4>
+            <p className="text-slate-400 text-xs mt-1">Track your progress and upcoming steps</p>
           </div>
           
           <nav className="space-y-4">
@@ -191,26 +191,26 @@ const ApplyVisa = () => {
                   onClick={() => jumpToStep(s.id)}
                   className={`flex items-start gap-4 p-3 rounded-xl transition-all duration-200 ${
                     isActive 
-                      ? 'bg-primary/5 border border-primary/20 shadow-sm' 
+                      ? 'bg-white/10 border border-white/10 shadow-sm' 
                       : isCompleted 
-                        ? 'cursor-pointer hover:bg-gray-50' 
-                        : 'opacity-60 select-none'
+                        ? 'cursor-pointer hover:bg-white/5' 
+                        : 'opacity-40 select-none'
                   }`}
                 >
                   <div className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 transition-all duration-300 ${
                     isActive 
-                      ? 'bg-primary text-white ring-4 ring-primary/20' 
+                      ? 'bg-indigo-500 text-white ring-4 ring-indigo-500/20' 
                       : isCompleted 
                         ? 'bg-emerald-500 text-white' 
-                        : 'bg-gray-100 text-gray-400'
+                        : 'bg-slate-800 text-slate-500 border border-slate-700'
                   }`}>
                     {renderStepIcon(s.id, isActive, isCompleted)}
                   </div>
                   <div>
-                    <h5 className={`text-sm font-bold leading-tight ${isActive ? 'text-primary' : isCompleted ? 'text-gray-800' : 'text-gray-500'}`}>
+                    <h5 className={`text-sm font-bold leading-tight ${isActive ? 'text-white' : isCompleted ? 'text-slate-200' : 'text-slate-400'}`}>
                       {s.name}
                     </h5>
-                    <p className={`text-xs mt-0.5 ${isActive ? 'text-primary/80 font-medium' : 'text-gray-400'}`}>
+                    <p className={`text-xs mt-0.5 ${isActive ? 'text-slate-300 font-medium' : 'text-slate-500'}`}>
                       {s.desc}
                     </p>
                   </div>
@@ -221,18 +221,18 @@ const ApplyVisa = () => {
 
           {/* Up Next Card Indicator */}
           {step < 7 && (
-            <div className="mt-8 p-4 bg-gray-50/70 border border-gray-200/50 rounded-xl">
-              <span className="text-[10px] uppercase font-bold text-gray-400 tracking-wider block">Up Next</span>
-              <span className="text-xs font-extrabold text-gray-700 mt-1 block">
+            <div className="mt-8 p-4 bg-white/5 border border-white/10 rounded-xl">
+              <span className="text-[10px] uppercase font-bold text-indigo-400 tracking-wider block">Up Next</span>
+              <span className="text-xs font-extrabold text-white mt-1 block">
                 {steps[step].name}
               </span>
-              <p className="text-[11px] text-gray-500 mt-0.5">{steps[step].desc}</p>
+              <p className="text-[11px] text-slate-400 mt-0.5">{steps[step].desc}</p>
             </div>
           )}
         </div>
 
         {/* Right Column: Main Form & Guidance Box */}
-        <div className="flex-1 w-full bg-[#f4f7fb]/95 backdrop-blur-2xl rounded-3xl border border-white/60 shadow-[0_8px_30px_rgb(0,0,0,0.06)] overflow-hidden flex flex-col">
+        <div className="flex-1 w-full bg-white/95 backdrop-blur-2xl rounded-3xl border border-white/80 shadow-[0_8px_30px_rgb(0,0,0,0.05)] overflow-hidden flex flex-col">
           {/* Top Primary banner showing current step details */}
           <div className="bg-gradient-to-r from-slate-900 to-slate-800 px-8 py-7 text-white">
             <div className="flex justify-between items-center">
@@ -806,14 +806,26 @@ const ApplyVisa = () => {
                     ✅
                   </div>
                   <h3 className="text-3xl font-extrabold text-gray-900 mb-2">Payment Successful!</h3>
-                  <p className="text-gray-500 text-lg mb-8">You have successfully paid <strong className="text-primary">${amountDue}</strong> for your visa application.</p>
+                  <p className="text-gray-500 text-lg mb-6">You have successfully paid <strong className="text-primary">${amountDue}</strong> for your visa application.</p>
                   
+                  <div className="mb-8 p-4 bg-amber-50 border border-amber-200 rounded-xl max-w-md text-left flex items-start gap-3">
+                    <svg className="w-5 h-5 text-amber-500 shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                    </svg>
+                    <div>
+                      <h4 className="text-amber-800 font-bold text-sm">Application Not Yet Submitted</h4>
+                      <p className="text-amber-700 text-xs mt-1 leading-relaxed">
+                        Your payment has been received, but your visa application is not yet submitted. You must login or register in the next step to complete and submit it.
+                      </p>
+                    </div>
+                  </div>
+
                   <button 
                     type="button" 
                     onClick={finalizeApplication}
                     className="px-10 py-4 bg-gradient-to-r from-primary to-[#4338ca] text-white font-bold rounded-xl hover:opacity-90 transition-all shadow-md shadow-primary/30 hover:-translate-y-0.5 text-lg"
                   >
-                    Continue to Dashboard
+                    Continue to Login/Register
                   </button>
                 </div>
               )}

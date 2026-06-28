@@ -74,16 +74,14 @@ exports.applyVisa = async (req, res) => {
 
     // Send Application Received Email asynchronously
     if (parsedPersonalDetails && parsedPersonalDetails.email) {
-      try {
-        const applicantName = `${parsedPersonalDetails.firstName || ''} ${parsedPersonalDetails.lastName || ''}`.trim();
-        await sendEmail({
-          email: parsedPersonalDetails.email,
-          subject: 'Somalia E-Visa Application Received',
-          html: emailTemplates.getApplicationReceivedTemplate(applicantName, savedApplication._id.toString())
-        });
-      } catch (emailError) {
+      const applicantName = `${parsedPersonalDetails.firstName || ''} ${parsedPersonalDetails.lastName || ''}`.trim();
+      sendEmail({
+        email: parsedPersonalDetails.email,
+        subject: 'Somalia E-Visa Application Received',
+        html: emailTemplates.getApplicationReceivedTemplate(applicantName, savedApplication._id.toString())
+      }).catch((emailError) => {
         console.error('Non-fatal error: Failed to send application received email.', emailError);
-      }
+      });
     }
 
     // Create Payment record if applicable
@@ -192,31 +190,29 @@ exports.updateStatus = async (req, res) => {
 
     // Send Status Update Email asynchronously
     if (application.personalDetails && application.personalDetails.email) {
-      try {
-        const applicantName = `${application.personalDetails.firstName || ''} ${application.personalDetails.lastName || ''}`.trim();
-        let emailSubject = '';
-        let emailHtml = '';
+      const applicantName = `${application.personalDetails.firstName || ''} ${application.personalDetails.lastName || ''}`.trim();
+      let emailSubject = '';
+      let emailHtml = '';
 
-        if (status === 'Approved') {
-          emailSubject = 'Your Somalia E-Visa Has Been Approved';
-          emailHtml = emailTemplates.getVisaApprovedTemplate(applicantName);
-        } else if (status === 'Rejected') {
-          emailSubject = 'Somalia E-Visa Application Update';
-          emailHtml = emailTemplates.getVisaRejectedTemplate(applicantName, application.rejectionReason);
-        } else if (status === 'Needs Revision') {
-          emailSubject = 'Additional Information Required';
-          emailHtml = emailTemplates.getNeedsRevisionTemplate(applicantName, application.rejectionReason);
-        }
+      if (status === 'Approved') {
+        emailSubject = 'Your Somalia E-Visa Has Been Approved';
+        emailHtml = emailTemplates.getVisaApprovedTemplate(applicantName);
+      } else if (status === 'Rejected') {
+        emailSubject = 'Somalia E-Visa Application Update';
+        emailHtml = emailTemplates.getVisaRejectedTemplate(applicantName, application.rejectionReason);
+      } else if (status === 'Needs Revision') {
+        emailSubject = 'Additional Information Required';
+        emailHtml = emailTemplates.getNeedsRevisionTemplate(applicantName, application.rejectionReason);
+      }
 
-        if (emailHtml) {
-          await sendEmail({
-            email: application.personalDetails.email,
-            subject: emailSubject,
-            html: emailHtml
-          });
-        }
-      } catch (emailError) {
-        console.error('Non-fatal error: Failed to send status update email.', emailError);
+      if (emailHtml) {
+        sendEmail({
+          email: application.personalDetails.email,
+          subject: emailSubject,
+          html: emailHtml
+        }).catch((emailError) => {
+          console.error('Non-fatal error: Failed to send status update email.', emailError);
+        });
       }
     }
 

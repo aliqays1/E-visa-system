@@ -5,6 +5,9 @@
 
 const baseTemplate = (content) => `
   <div style="font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; max-width: 600px; margin: 0 auto; background-color: #ffffff; border: 1px solid #e5e7eb; border-radius: 8px; overflow: hidden;">
+    <div style="background-color: #fef3c7; color: #92400e; padding: 10px 16px; text-align: center; font-size: 12px; font-weight: bold; border-bottom: 1px solid #fde68a;">
+      ⚠️ DEVELOPMENT TEST: This is a system-generated test notification from a sandbox environment.
+    </div>
     <div style="background-color: #1e3a8a; padding: 24px; text-align: center;">
       <h1 style="color: #ffffff; margin: 0; font-size: 24px; font-weight: bold; letter-spacing: 1px;">SOMALIA E-VISA PORTAL</h1>
       <p style="color: #93c5fd; margin: 8px 0 0 0; font-size: 14px; text-transform: uppercase; letter-spacing: 2px;">Official Government Communication</p>
