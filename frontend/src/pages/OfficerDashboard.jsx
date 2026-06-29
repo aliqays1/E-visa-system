@@ -84,7 +84,6 @@ const OfficerDashboard = () => {
   };
 
   const handleSendWarning = async (id) => {
-    if (!window.confirm("Are you sure you want to send an official overstay warning email to this applicant?")) return;
     try {
       const res = await axios.post(`/api/visa/${id}/send-warning`, {}, {
         headers: { 'Authorization': `Bearer ${token}` }
@@ -165,7 +164,6 @@ const OfficerDashboard = () => {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       if (res.data.success) {
-        alert(res.data.message);
         fetchApplications();
       }
     } catch (error) {

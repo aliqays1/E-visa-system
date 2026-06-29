@@ -587,18 +587,6 @@ exports.sendWarning = async (req, res) => {
       return res.status(400).json({ success: false, message: 'Applicant is not flagged for overstay.' });
     }
 
-    // Check if warning was sent in the last 12 hours
-    if (application.lastWarningSentAt) {
-      const twelveHoursAgo = new Date();
-      twelveHoursAgo.setHours(twelveHoursAgo.getHours() - 12);
-      if (application.lastWarningSentAt > twelveHoursAgo) {
-        return res.status(400).json({ 
-          success: false, 
-          message: 'You sent the warning email, wait for 12 hours to send another one.' 
-        });
-      }
-    }
-
     const email = application.personalDetails?.email;
     if (!email) {
       return res.status(400).json({ success: false, message: 'No email address found for this applicant.' });
