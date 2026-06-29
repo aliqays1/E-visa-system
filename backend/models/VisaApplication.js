@@ -27,6 +27,7 @@ const visaApplicationSchema = new mongoose.Schema({
   entryDate: { type: Date },
   exitDate: { type: Date },
   overstayAlert: { type: Boolean, default: false },
+  lastWarningSentAt: { type: Date },
   scannedHistory: [{
     action: { type: String, enum: ['Entry', 'Exit', 'Overstay Warning', 'Scan', 'Verified'], required: true },
     timestamp: { type: Date, default: Date.now },

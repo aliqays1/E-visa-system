@@ -96,7 +96,8 @@ const OfficerDashboard = () => {
       }
     } catch (error) {
       console.error(error);
-      alert('An error occurred while sending the email.');
+      const errorMsg = error.response?.data?.message || 'An error occurred while sending the email.';
+      alert(errorMsg);
     }
   };
 
@@ -158,6 +159,7 @@ const OfficerDashboard = () => {
   };
 
   const checkOverstays = async () => {
+    setActiveTab('alerts');
     try {
       const res = await axios.post('/api/visa/check-overstays', {}, {
         headers: { 'Authorization': `Bearer ${token}` }

@@ -120,6 +120,32 @@ exports.getMyApplications = async (req, res) => {
 // Get all applications (Officer view)
 exports.getAllApplications = async (req, res) => {
   try {
+    const now = new Date();
+    
+    // Auto-heal existing records: ensure expirationDate is based on entryDate for entered visas
+    const enteredVisas = await VisaApplication.find({ entryStatus: 'Entered' });
+    for (let visa of enteredVisas) {
+      if (visa.entryDate) {
+        const correctExp = new Date(visa.entryDate);
+        correctExp.setDate(correctExp.getDate() + (visa.visaDuration || 30));
+        visa.expirationDate = correctExp;
+        await visa.save();
+      }
+    }
+
+    // Auto-detect new overstays
+    const overstayedVisas = await VisaApplication.find({
+      entryStatus: 'Entered',
+      expirationDate: { $lt: now },
+      overstayAlert: { $ne: true }
+    });
+
+    for (let visa of overstayedVisas) {
+      visa.overstayAlert = true;
+      visa.entryStatus = 'Overstayed';
+      await visa.save();
+    }
+
     const applications = await VisaApplication.find()
       .populate('applicantId', 'fullName email')
       .sort({ createdAt: -1 });
@@ -561,6 +587,18 @@ exports.sendWarning = async (req, res) => {
       return res.status(400).json({ success: false, message: 'Applicant is not flagged for overstay.' });
     }
 
+    // Check if warning was sent in the last 12 hours
+    if (application.lastWarningSentAt) {
+      const twelveHoursAgo = new Date();
+      twelveHoursAgo.setHours(twelveHoursAgo.getHours() - 12);
+      if (application.lastWarningSentAt > twelveHoursAgo) {
+        return res.status(400).json({ 
+          success: false, 
+          message: 'You sent the warning email, wait for 12 hours to send another one.' 
+        });
+      }
+    }
+
     const email = application.personalDetails?.email;
     if (!email) {
       return res.status(400).json({ success: false, message: 'No email address found for this applicant.' });
@@ -584,11 +622,17 @@ exports.sendWarning = async (req, res) => {
     `;
 
     const sendEmail = require('../utils/sendEmail');
-    await sendEmail({
+    sendEmail({
       email: email,
       subject: 'URGENT: Visa Overstay Warning',
       html: htmlContent
+    }).catch((emailError) => {
+      console.error('Non-fatal error: Failed to send warning email.', emailError);
     });
+
+    // Update lastWarningSentAt
+    application.lastWarningSentAt = new Date();
+    await application.save();
 
     // Optional: Log this action
     if (req.user && req.user.role === 'officer') {
