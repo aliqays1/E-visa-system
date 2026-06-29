@@ -249,7 +249,7 @@ const ApplicantDashboard = () => {
                         )}
                         {app.applicationStatus === 'Needs Revision' && (
                           <div className="flex flex-col items-end gap-1.5">
-                            <span className="text-xs text-red-500 font-bold bg-red-900/20 border border-red-800/30 px-3 py-1.5 rounded-lg inline-block max-w-[200px] truncate" title={app.rejectionReason || 'Additional information required.'}>
+                            <span className="text-xs text-red-500 font-bold bg-red-900/20 border border-red-800/30 px-3 py-1.5 rounded-lg inline-block max-w-sm whitespace-normal break-words text-right" title={app.rejectionReason || 'Additional information required.'}>
                               {app.rejectionReason || 'Additional information required.'}
                             </span>
                             <button
