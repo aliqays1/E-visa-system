@@ -248,13 +248,13 @@ const ApplicantDashboard = () => {
                           </span>
                         )}
                         {app.applicationStatus === 'Needs Revision' && (
-                          <div className="flex flex-col items-end gap-1">
-                            <span className="text-xs text-amber-400 font-medium bg-amber-900/20 border border-amber-800/30 px-3 py-1.5 rounded-lg inline-block max-w-[200px] truncate" title={app.rejectionReason || 'Additional information required.'}>
+                          <div className="flex flex-col items-end gap-1.5">
+                            <span className="text-xs text-red-500 font-bold bg-red-900/20 border border-red-800/30 px-3 py-1.5 rounded-lg inline-block max-w-[200px] truncate" title={app.rejectionReason || 'Additional information required.'}>
                               {app.rejectionReason || 'Additional information required.'}
                             </span>
                             <button
                               onClick={() => window.location.href = `/apply?edit=true&id=${app._id}`}
-                              className="text-[10px] uppercase tracking-wider px-3 py-1 bg-amber-600 text-white hover:bg-amber-500 font-bold rounded transition-colors shadow-sm"
+                              className="text-[10px] uppercase tracking-wider px-4 py-1.5 bg-gradient-to-r from-amber-500 to-orange-500 text-white hover:from-amber-600 hover:to-orange-600 font-extrabold rounded-lg transition-all transform hover:-translate-y-0.5 shadow-md hover:shadow-lg"
                             >
                               Edit Application
                             </button>
