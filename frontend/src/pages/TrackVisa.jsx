@@ -144,19 +144,19 @@ const TrackVisa = () => {
 
         {/* Action Buttons */}
         <div className="mt-8 flex gap-4">
-          {visaData.pdfUrl && (
+          {visaData.pdfUrl && !isOverstay && (
             <a 
               href={`/${visaData.pdfUrl.replace(/\\/g, '/')}`}
               target="_blank"
               rel="noreferrer"
-              className="flex-1 bg-primary hover:bg-blue-700 text-white font-bold py-4 rounded-xl text-center shadow-lg shadow-blue-500/30 transition-all"
+              className="flex-grow bg-primary hover:bg-blue-700 text-white font-bold py-4 rounded-xl text-center shadow-lg shadow-blue-500/30 transition-all text-center flex items-center justify-center"
             >
               Download Official e-Visa PDF
             </a>
           )}
           <button 
             onClick={() => { setVisaData(null); setStep(1); setOtpCode(''); }}
-            className="px-6 py-4 border-2 border-gray-200 text-gray-600 font-bold rounded-xl hover:bg-gray-50 transition-all"
+            className={`py-4 border-2 border-gray-200 text-gray-600 font-bold rounded-xl hover:bg-gray-50 transition-all text-center ${visaData.pdfUrl && !isOverstay ? 'px-6' : 'flex-1 w-full'}`}
           >
             Search Another
           </button>
