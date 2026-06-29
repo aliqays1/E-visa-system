@@ -5,7 +5,7 @@ import OtpInput from '../components/OtpInput';
 import { GlobeAltIcon, MagnifyingGlassIcon, ExclamationTriangleIcon, CheckCircleIcon, EnvelopeIcon } from '@heroicons/react/24/outline';
 
 const TrackVisa = () => {
-  const [email, setEmail] = useState('');
+  const [referenceId, setReferenceId] = useState('');
   const [passportNumber, setPassportNumber] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -31,15 +31,11 @@ const TrackVisa = () => {
 
     try {
       const res = await axios.post('/api/visa/track', {
-        email: email.trim(),
+        referenceId: referenceId.trim(),
         passportNumber: passportNumber.trim()
       });
 
-      if (res.data.success && res.data.requires_otp) {
-        setStep(2);
-        setTimeLeft(120);
-      } else if (res.data.success) {
-        // Fallback if no OTP required
+      if (res.data.success) {
         setVisaData(res.data.application);
         setStep(3);
       }
@@ -210,15 +206,15 @@ const TrackVisa = () => {
                 )}
                 <form onSubmit={handleTrack} className="space-y-6">
                   <div>
-                    <label className="block text-xs font-bold uppercase tracking-wider text-gray-400 mb-2 ml-1">Email Address</label>
+                    <label className="block text-xs font-bold uppercase tracking-wider text-gray-400 mb-2 ml-1">Reference ID</label>
                     <div className="relative">
                       <MagnifyingGlassIcon className="h-5 w-5 text-gray-400 absolute left-4 top-1/2 transform -translate-y-1/2" />
                       <input 
-                        type="email" 
-                        className="w-full pl-12 pr-4 py-4 bg-gray-50 rounded-2xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all text-gray-800 text-lg"
-                        placeholder="e.g. your.email@example.com"
-                        value={email}
-                        onChange={(e) => setEmail(e.target.value)}
+                        type="text" 
+                        className="w-full pl-12 pr-4 py-4 bg-gray-50 rounded-2xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all text-gray-800 text-lg font-mono"
+                        placeholder="Enter Reference ID"
+                        value={referenceId}
+                        onChange={(e) => setReferenceId(e.target.value)}
                         required
                       />
                     </div>

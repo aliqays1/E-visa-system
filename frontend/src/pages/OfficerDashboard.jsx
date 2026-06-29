@@ -83,6 +83,23 @@ const OfficerDashboard = () => {
     }
   };
 
+  const handleSendWarning = async (id) => {
+    if (!window.confirm("Are you sure you want to send an official overstay warning email to this applicant?")) return;
+    try {
+      const res = await axios.post(`/api/visa/${id}/send-warning`, {}, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      if (res.data.success) {
+        alert('Warning email sent successfully!');
+      } else {
+        alert(res.data.message || 'Failed to send warning email.');
+      }
+    } catch (error) {
+      console.error(error);
+      alert('An error occurred while sending the email.');
+    }
+  };
+
   const handleVerifyPayment = async (id, status) => {
     try {
       const res = await axios.put(`/api/visa/${id}/verify-payment`, {
@@ -548,7 +565,14 @@ const OfficerDashboard = () => {
                   <button onClick={() => handleUpdateStatus(selectedApplication._id, 'Approved')} className="px-6 py-2 bg-green-600 hover:bg-green-700 text-white font-bold text-sm rounded-xl transition-colors shadow-md">Approve Visa</button>
                 </div>
               ) : (
-                <button onClick={() => setSelectedApplication(null)} className="px-6 py-2 bg-gray-800 hover:bg-gray-700 text-white font-bold text-sm rounded-xl">Close Dossier</button>
+                <div className="space-x-3">
+                  {selectedApplication.overstayAlert && (
+                    <button onClick={() => handleSendWarning(selectedApplication._id)} className="px-6 py-2 bg-red-100 text-red-700 hover:bg-red-200 font-bold text-sm rounded-xl transition-colors">
+                      <ExclamationTriangleIcon className="w-4 h-4 inline mr-1 -mt-0.5" /> Send Warning Email
+                    </button>
+                  )}
+                  <button onClick={() => setSelectedApplication(null)} className="px-6 py-2 bg-gray-800 hover:bg-gray-700 text-white font-bold text-sm rounded-xl transition-colors">Close Dossier</button>
+                </div>
               )}
             </div>
           </div>

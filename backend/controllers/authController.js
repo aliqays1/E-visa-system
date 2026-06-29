@@ -151,51 +151,15 @@ exports.loginUser = async (req, res) => {
                          process.env.RENDER === 'true';
 
     if (user && (await bcrypt.compare(password, user.password))) {
-      // Bypass OTP if running on Render cloud (to avoid SMTP block) or for specific admins
-      if (isProduction || email === 'admin@evisa.gov.so' || email === 'auditor@evisa.gov.so') {
-        return res.status(200).json({
-          success: true,
-          _id: user._id,
-          fullName: user.fullName,
-          email: user.email,
-          role: user.role,
-          nationality: user.nationality,
-          token: generateToken(user._id, user.role),
-        });
-      }
-
-      // Credentials are valid, send OTP (Works locally!)
-      const code = generateOTP();
-      const expiresAt = new Date(Date.now() + 2 * 60000); // 2 minutes
-
-      await VerificationCode.deleteMany({ email, type: 'login' });
-
-      await VerificationCode.create({
-        email,
-        code,
-        type: 'login',
-        expiresAt
+      return res.status(200).json({
+        success: true,
+        _id: user._id,
+        fullName: user.fullName,
+        email: user.email,
+        role: user.role,
+        nationality: user.nationality,
+        token: generateToken(user._id, user.role),
       });
-
-      const emailHtml = `
-        <div style="font-family: Arial, sans-serif; max-width: 500px; margin: 0 auto; padding: 20px; border: 1px solid #e5e7eb; border-radius: 12px;">
-          <h2 style="color: #1e3a8a; text-align: center;">Login Verification</h2>
-          <p style="color: #4b5563; font-size: 16px;">Hello ${user.fullName},</p>
-          <p style="color: #4b5563; font-size: 16px;">A login attempt was made to your Somalia E-Visa account. Please use the verification code below to proceed.</p>
-          <div style="background-color: #f3f4f6; padding: 16px; border-radius: 8px; text-align: center; margin: 24px 0;">
-            <span style="font-size: 32px; font-weight: bold; letter-spacing: 4px; color: #1e3a8a;">${code}</span>
-          </div>
-          <p style="color: #6b7280; font-size: 14px;">This code will expire in 2 minutes.</p>
-        </div>
-      `;
-
-      await sendEmail({
-        email,
-        subject: 'Somalia E-Visa - Login Verification Code',
-        html: emailHtml
-      });
-
-      res.status(200).json({ requires_otp: true, email, message: 'Verification code sent to your email.' });
     } else {
       res.status(401).json({ message: 'Invalid email or password' });
     }

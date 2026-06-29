@@ -10,7 +10,10 @@ import {
   ShieldCheckIcon,
   BellAlertIcon,
   ClockIcon,
-  Bars3Icon
+  Bars3Icon,
+  PrinterIcon,
+  ArrowDownTrayIcon,
+  PresentationChartLineIcon
 } from '@heroicons/react/24/outline';
 
 const AuditorDashboard = () => {
@@ -26,6 +29,51 @@ const AuditorDashboard = () => {
   
   const [loading, setLoading] = useState(true);
   const [selectedApplication, setSelectedApplication] = useState(null);
+
+  // Report State
+  const [reportMonth, setReportMonth] = useState(''); // YYYY-MM
+  const [reportStatus, setReportStatus] = useState('All');
+  const [reportPayment, setReportPayment] = useState('All');
+
+  const filteredReportApps = applications.filter(app => {
+    let match = true;
+    if (reportStatus !== 'All') {
+      if (reportStatus === 'Pending' && !['Submitted', 'Pending', 'Under Review', 'Needs Revision'].includes(app.applicationStatus)) match = false;
+      else if (reportStatus !== 'Pending' && app.applicationStatus !== reportStatus) match = false;
+    }
+    if (reportPayment !== 'All') {
+      if (app.paymentStatus !== reportPayment && !(reportPayment === 'Pending' && !app.paymentStatus)) match = false;
+    }
+    if (reportMonth) {
+      const appMonth = new Date(app.createdAt).toISOString().substring(0, 7);
+      if (appMonth !== reportMonth) match = false;
+    }
+    return match;
+  });
+
+  const handleDownloadCSV = () => {
+    let csvContent = "data:text/csv;charset=utf-8,";
+    csvContent += "Applicant Name,Passport,Visa Type,Submission Date,Application Status,Payment Status,Amount\n";
+    filteredReportApps.forEach(app => {
+      const name = `${app.personalDetails?.firstName || ''} ${app.personalDetails?.lastName || ''}`;
+      const passport = app.personalDetails?.passportNumber || '';
+      const date = new Date(app.createdAt).toLocaleDateString();
+      const amt = app.paymentStatus === 'Completed' ? (app.paymentDetails?.amountPaid || 100) : 0;
+      const row = `"${name}","${passport}","${app.visaType}","${date}","${app.applicationStatus}","${app.paymentStatus || 'Pending'}","${amt}"`;
+      csvContent += row + "\n";
+    });
+    const encodedUri = encodeURI(csvContent);
+    const link = document.createElement("a");
+    link.setAttribute("href", encodedUri);
+    link.setAttribute("download", `visa_report_${reportMonth || 'all'}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
+  const handlePrint = () => {
+    window.print();
+  };
 
   useEffect(() => {
     if (token && user && user.role === 'auditor') {
@@ -71,7 +119,7 @@ const AuditorDashboard = () => {
       {mobileMenuOpen && (
         <div className="fixed inset-0 bg-black/50 z-40 lg:hidden" onClick={() => setMobileMenuOpen(false)}></div>
       )}
-      <aside className={`w-64 bg-[#1e293b] text-white flex flex-col shadow-xl z-50 fixed lg:sticky top-0 h-screen transition-transform duration-300 ${mobileMenuOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}`}>
+      <aside className={`w-64 bg-[#1e293b] text-white flex flex-col shadow-xl z-50 fixed lg:sticky top-0 h-screen transition-transform duration-300 print:hidden ${mobileMenuOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}`}>
         <div className="p-6 flex items-center space-x-3 border-b border-gray-700 bg-[#0f172a]">
           <div className="bg-white p-1.5 rounded-xl shadow-sm flex items-center justify-center">
             <img src="/logo.png" alt="Logo" className="h-7 w-7 object-contain" />
@@ -104,12 +152,16 @@ const AuditorDashboard = () => {
             <GlobeAltIcon className="h-5 w-5" />
             <span>Border Movements</span>
           </button>
+          <button onClick={() => setActiveTab('reports')} className={`w-full flex items-center space-x-3 px-4 py-3 text-sm font-medium rounded-xl transition-all duration-200 ${activeTab === 'reports' ? 'bg-indigo-600 text-white shadow-lg' : 'text-gray-300 hover:bg-gray-800'}`}>
+            <PresentationChartLineIcon className="h-5 w-5" />
+            <span>Reports & Analytics</span>
+          </button>
         </nav>
       </aside>
 
       {/* Main Content Area */}
       <div className="flex-1 flex flex-col h-screen overflow-y-auto w-full">
-        <header className="bg-white px-4 lg:px-8 py-5 flex flex-col sm:flex-row items-center justify-between border-b border-gray-200 shadow-sm sticky top-0 z-10 gap-4">
+        <header className="bg-white px-4 lg:px-8 py-5 flex flex-col sm:flex-row items-center justify-between border-b border-gray-200 shadow-sm sticky top-0 z-10 gap-4 print:hidden">
           <div className="flex w-full sm:w-auto items-center gap-4">
             <button className="lg:hidden text-gray-500 hover:text-indigo-600" onClick={() => setMobileMenuOpen(!mobileMenuOpen)}>
               <Bars3Icon className="h-6 w-6" />
@@ -129,7 +181,7 @@ const AuditorDashboard = () => {
           </div>
         </header>
 
-        <div className="p-8">
+        <div className="p-8 print:p-0">
           
           {loading ? (
             <div className="flex justify-center items-center py-20">
@@ -484,6 +536,108 @@ const AuditorDashboard = () => {
                             <td className="px-6 py-4 text-gray-500 text-xs">{app.exitDate ? new Date(app.exitDate).toLocaleString() : '-'}</td>
                           </tr>
                         ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              )}
+
+              {activeTab === 'reports' && (
+                <div className="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden print:shadow-none print:border-none">
+                  <div className="px-6 py-5 border-b border-gray-200 bg-gray-50 flex justify-between items-center print:hidden">
+                    <h3 className="text-lg font-bold text-gray-900">Custom Reports & Analytics</h3>
+                    <div className="flex space-x-3">
+                       <button onClick={handlePrint} className="px-4 py-2 bg-gray-200 hover:bg-gray-300 text-gray-800 rounded-lg text-sm font-bold flex items-center shadow-sm">
+                         <PrinterIcon className="h-4 w-4 mr-2" /> Print Report
+                       </button>
+                       <button onClick={handleDownloadCSV} className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-sm font-bold flex items-center shadow-sm">
+                         <ArrowDownTrayIcon className="h-4 w-4 mr-2" /> Download CSV
+                       </button>
+                    </div>
+                  </div>
+                  
+                  {/* Filters - Hidden when printing */}
+                  <div className="p-6 border-b border-gray-200 bg-white grid grid-cols-1 md:grid-cols-3 gap-4 print:hidden">
+                     <div>
+                        <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Filter by Month</label>
+                        <input type="month" value={reportMonth} onChange={(e) => setReportMonth(e.target.value)} className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+                     </div>
+                     <div>
+                        <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Visa Status</label>
+                        <select value={reportStatus} onChange={(e) => setReportStatus(e.target.value)} className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                           <option value="All">All Statuses</option>
+                           <option value="Approved">Approved</option>
+                           <option value="Rejected">Rejected</option>
+                           <option value="Pending">Pending / Submitted</option>
+                        </select>
+                     </div>
+                     <div>
+                        <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Payment Status</label>
+                        <select value={reportPayment} onChange={(e) => setReportPayment(e.target.value)} className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                           <option value="All">All Payments</option>
+                           <option value="Completed">Completed</option>
+                           <option value="Pending">Pending</option>
+                        </select>
+                     </div>
+                  </div>
+
+                  {/* Print Header - Visible only when printing */}
+                  <div className="hidden print:block p-8 border-b border-gray-200">
+                     <h2 className="text-2xl font-extrabold text-gray-900">Visa Operations Report</h2>
+                     <p className="text-gray-500 mt-2">Generated on: {new Date().toLocaleString()}</p>
+                     <div className="mt-4 flex space-x-8 text-sm">
+                        <div><strong>Period:</strong> {reportMonth || 'All Time'}</div>
+                        <div><strong>Visa Status:</strong> {reportStatus}</div>
+                        <div><strong>Payment Status:</strong> {reportPayment}</div>
+                     </div>
+                  </div>
+
+                  {/* Report Data Table */}
+                  <div className="overflow-x-auto p-6">
+                    <div className="mb-4 flex space-x-6 text-sm print:mb-8">
+                       <div className="font-bold text-gray-700">Total Records: <span className="text-indigo-600">{filteredReportApps.length}</span></div>
+                       <div className="font-bold text-gray-700">Total Revenue: <span className="text-green-600">${filteredReportApps.filter(a => a.paymentStatus === 'Completed').reduce((s, a) => s + (a.paymentDetails?.amountPaid || 100), 0).toLocaleString()}</span></div>
+                    </div>
+                    <table className="w-full text-left border-collapse">
+                      <thead>
+                        <tr className="bg-gray-50 border-y border-gray-200 text-xs font-extrabold text-gray-500 uppercase tracking-widest">
+                          <th className="px-4 py-3">Applicant Name</th>
+                          <th className="px-4 py-3">Passport</th>
+                          <th className="px-4 py-3">Visa Type</th>
+                          <th className="px-4 py-3">Submission Date</th>
+                          <th className="px-4 py-3">Status</th>
+                          <th className="px-4 py-3 text-right">Payment</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-gray-100 text-sm">
+                        {filteredReportApps.length > 0 ? filteredReportApps.map(app => (
+                          <tr key={app._id} className="hover:bg-gray-50 transition-colors break-inside-avoid">
+                            <td className="px-4 py-3 font-bold text-gray-900 capitalize">{app.personalDetails?.firstName} {app.personalDetails?.lastName}</td>
+                            <td className="px-4 py-3 text-gray-500 font-mono text-xs">{app.personalDetails?.passportNumber}</td>
+                            <td className="px-4 py-3 text-gray-600">{app.visaType}</td>
+                            <td className="px-4 py-3 text-gray-500">{new Date(app.createdAt).toLocaleDateString()}</td>
+                            <td className="px-4 py-3">
+                              <span className={`px-2 py-1 rounded text-[11px] font-bold uppercase tracking-wider print:border print:border-gray-300 ${
+                                app.applicationStatus === 'Approved' ? 'bg-green-100 text-green-700' :
+                                app.applicationStatus === 'Rejected' ? 'bg-red-100 text-red-700' :
+                                'bg-yellow-100 text-yellow-700'
+                              }`}>
+                                {app.applicationStatus}
+                              </span>
+                            </td>
+                            <td className="px-4 py-3 text-right">
+                              <span className={`px-2 py-1 rounded text-[11px] font-bold uppercase tracking-wider print:border print:border-gray-300 ${
+                                app.paymentStatus === 'Completed' ? 'text-green-600' : 'text-gray-500'
+                              }`}>
+                                {app.paymentStatus === 'Completed' ? `$${app.paymentDetails?.amountPaid || 100}` : app.paymentStatus || 'Pending'}
+                              </span>
+                            </td>
+                          </tr>
+                        )) : (
+                           <tr>
+                             <td colSpan="6" className="px-4 py-8 text-center text-gray-500 italic">No applications match your filter criteria.</td>
+                           </tr>
+                        )}
                       </tbody>
                     </table>
                   </div>

@@ -235,15 +235,13 @@ exports.updateStatus = async (req, res) => {
 // Public Visa Tracking
 exports.trackVisa = async (req, res) => {
   try {
-    const { email, passportNumber } = req.body;
+    const { referenceId, passportNumber } = req.body;
 
-    if (!email || !passportNumber) {
-      return res.status(400).json({ success: false, message: 'Email Address and Passport Number are required.' });
+    if (!referenceId || !passportNumber) {
+      return res.status(400).json({ success: false, message: 'Reference ID and Passport Number are required.' });
     }
 
-    const application = await VisaApplication.findOne({ 
-      'personalDetails.email': email
-    });
+    const application = await VisaApplication.findById(referenceId);
     
     if (!application) {
       return res.status(404).json({ success: false, message: 'Visa Application not found.' });
@@ -254,38 +252,27 @@ exports.trackVisa = async (req, res) => {
       return res.status(401).json({ success: false, message: 'Invalid Passport Number for this application.' });
     }
 
-    // Instead of returning data, send OTP
-    const code = Math.floor(100000 + Math.random() * 900000).toString();
-    const expiresAt = new Date(Date.now() + 2 * 60000); // 2 minutes
-
-    await VerificationCode.deleteMany({ email, type: 'track' });
-
-    await VerificationCode.create({
-      email,
-      code,
-      type: 'track',
-      expiresAt
+    res.json({
+      success: true,
+      application: {
+        _id: application._id,
+        visaType: application.visaType,
+        applicationStatus: application.applicationStatus,
+        createdAt: application.createdAt,
+        approvalDate: application.approvalDate,
+        expirationDate: application.expirationDate,
+        visaDuration: application.visaDuration,
+        rejectionReason: application.rejectionReason,
+        personalDetails: {
+          firstName: application.personalDetails?.firstName,
+          lastName: application.personalDetails?.lastName,
+          passportNumber: application.personalDetails?.passportNumber,
+          nationality: application.personalDetails?.nationality,
+        },
+        pdfUrl: application.pdfUrl,
+        qrCodeUrl: application.qrCodeUrl
+      }
     });
-
-    const emailHtml = `
-      <div style="font-family: Arial, sans-serif; max-width: 500px; margin: 0 auto; padding: 20px; border: 1px solid #e5e7eb; border-radius: 12px;">
-        <h2 style="color: #1e3a8a; text-align: center;">Visa Tracking Verification</h2>
-        <p style="color: #4b5563; font-size: 16px;">Hello ${application.personalDetails.firstName},</p>
-        <p style="color: #4b5563; font-size: 16px;">Someone is trying to track your visa application. Please use the verification code below to view your status.</p>
-        <div style="background-color: #f3f4f6; padding: 16px; border-radius: 8px; text-align: center; margin: 24px 0;">
-          <span style="font-size: 32px; font-weight: bold; letter-spacing: 4px; color: #1e3a8a;">${code}</span>
-        </div>
-        <p style="color: #6b7280; font-size: 14px;">This code will expire in 2 minutes.</p>
-      </div>
-    `;
-
-    await sendEmail({
-      email,
-      subject: 'Somalia E-Visa - Tracking Verification Code',
-      html: emailHtml
-    });
-
-    res.json({ success: true, requires_otp: true, email, message: 'Verification code sent to your email.' });
 
   } catch (error) {
     console.error('Error tracking visa:', error);
@@ -389,6 +376,11 @@ exports.recordEntry = async (req, res) => {
     application.entryStatus = 'Entered';
     application.entryDate = new Date();
     
+    const stayExpDate = new Date(application.entryDate);
+    const duration = application.visaDuration || 30;
+    stayExpDate.setDate(stayExpDate.getDate() + duration);
+    application.expirationDate = stayExpDate;
+    
     const location = req.body.location || 'Mogadishu International Airport'; // Default location
     application.scannedHistory.push({
       action: 'Entry',
@@ -456,11 +448,22 @@ exports.checkOverstays = async (req, res) => {
   try {
     const now = new Date();
     
+    // Heal existing records: ensure expirationDate is based on entryDate for entered visas
+    const enteredVisas = await VisaApplication.find({ entryStatus: 'Entered' });
+    for (let visa of enteredVisas) {
+      if (visa.entryDate) {
+        const correctExp = new Date(visa.entryDate);
+        correctExp.setDate(correctExp.getDate() + (visa.visaDuration || 30));
+        visa.expirationDate = correctExp;
+        await visa.save();
+      }
+    }
+
     // Find visas that are Entered, but expirationDate is in the past
     const overstayedVisas = await VisaApplication.find({
       entryStatus: 'Entered',
       expirationDate: { $lt: now },
-      overstayAlert: false
+      overstayAlert: { $ne: true }
     });
 
     for (let visa of overstayedVisas) {
@@ -541,5 +544,68 @@ exports.verifyVisaToken = async (req, res) => {
   } catch (error) {
     console.error('Error verifying visa token:', error);
     res.status(500).json({ success: false, message: 'Server error verifying visa token.' });
+  }
+};
+
+// Send Overstay Warning Email
+exports.sendWarning = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const application = await VisaApplication.findById(id);
+
+    if (!application) {
+      return res.status(404).json({ success: false, message: 'Application not found.' });
+    }
+
+    if (!application.overstayAlert) {
+      return res.status(400).json({ success: false, message: 'Applicant is not flagged for overstay.' });
+    }
+
+    const email = application.personalDetails?.email;
+    if (!email) {
+      return res.status(400).json({ success: false, message: 'No email address found for this applicant.' });
+    }
+
+    const htmlContent = `
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; border: 1px solid #ddd; border-radius: 8px; overflow: hidden;">
+        <div style="background-color: #dc2626; padding: 20px; text-align: center;">
+          <h2 style="color: white; margin: 0;">URGENT: Visa Overstay Warning</h2>
+        </div>
+        <div style="padding: 20px;">
+          <p>Dear ${application.personalDetails.firstName},</p>
+          <p>Our border control records indicate that your visa has <strong>expired</strong> as of ${new Date(application.expirationDate).toLocaleDateString()}, and you have not recorded an exit from Somalia.</p>
+          <p><strong>Overstaying a visa is a serious violation of immigration laws.</strong></p>
+          <p>Please contact the immigration department immediately to resolve your status or arrange for your departure. Failure to do so may result in fines, detention, or future travel bans.</p>
+          <br/>
+          <p>Sincerely,</p>
+          <p><strong>Somalia Immigration Authority</strong></p>
+        </div>
+      </div>
+    `;
+
+    const sendEmail = require('../utils/sendEmail');
+    await sendEmail({
+      email: email,
+      subject: 'URGENT: Visa Overstay Warning',
+      html: htmlContent
+    });
+
+    // Optional: Log this action
+    if (req.user && req.user.role === 'officer') {
+      const ActivityLog = require('../models/ActivityLog');
+      await ActivityLog.create({
+        officerId: req.user._id,
+        officerName: req.user.fullName,
+        action: 'Sent Overstay Warning',
+        details: `Sent warning email to ${application.personalDetails.firstName} (Visa ID: ${application._id})`,
+        ipAddress: req.ip
+      });
+    }
+
+    res.json({ success: true, message: 'Warning email sent successfully.' });
+
+  } catch (error) {
+    console.error('Error sending warning:', error);
+    res.status(500).json({ success: false, message: 'Server error sending warning email.' });
   }
 };

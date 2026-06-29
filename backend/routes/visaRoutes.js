@@ -36,5 +36,6 @@ router.post('/:id/exit', protect, officerOnly, visaController.recordExit);
 
 // Overstays
 router.post('/check-overstays', protect, officerOnly, visaController.checkOverstays);
+router.post('/:id/send-warning', protect, officerOnly, visaController.sendWarning);
 
 module.exports = router;
