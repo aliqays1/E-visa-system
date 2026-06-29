@@ -225,7 +225,7 @@ const ApplicantDashboard = () => {
                         </span>
                       </td>
                       <td className="p-4">
-                        <span className={`px-3 py-1 rounded-full text-xs font-bold uppercase border ${
+                        <span className={`whitespace-nowrap px-3 py-1 rounded-full text-xs font-bold uppercase border ${
                           app.applicationStatus === 'Approved' ? 'bg-emerald-900/30 text-emerald-400 border-emerald-800/50' :
                           app.applicationStatus === 'Rejected' ? 'bg-rose-900/30 text-rose-400 border-rose-800/50' :
                           'bg-amber-900/30 text-amber-400 border-amber-800/50'
