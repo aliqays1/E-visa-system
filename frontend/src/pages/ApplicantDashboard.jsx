@@ -247,6 +247,19 @@ const ApplicantDashboard = () => {
                             {app.rejectionReason || 'Requirements not met.'}
                           </span>
                         )}
+                        {app.applicationStatus === 'Needs Revision' && (
+                          <div className="flex flex-col items-end gap-1">
+                            <span className="text-xs text-amber-400 font-medium bg-amber-900/20 border border-amber-800/30 px-3 py-1.5 rounded-lg inline-block max-w-[200px] truncate" title={app.rejectionReason || 'Additional information required.'}>
+                              {app.rejectionReason || 'Additional information required.'}
+                            </span>
+                            <button
+                              onClick={() => window.location.href = `/apply?edit=true&id=${app._id}`}
+                              className="text-[10px] uppercase tracking-wider px-3 py-1 bg-amber-600 text-white hover:bg-amber-500 font-bold rounded transition-colors shadow-sm"
+                            >
+                              Edit Application
+                            </button>
+                          </div>
+                        )}
                         {(app.applicationStatus === 'Submitted' || app.applicationStatus === 'Under Review') && (
                           <span className="text-xs text-gray-400 font-medium italic">Processing</span>
                         )}

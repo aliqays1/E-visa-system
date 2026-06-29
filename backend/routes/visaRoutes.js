@@ -17,6 +17,13 @@ router.get('/my-applications', protect, visaController.getMyApplications);
 // Fetch all applications (Officer view)
 router.get('/all', protect, officerOnly, visaController.getAllApplications);
 
+// Update application (Applicant action when Needs Revision)
+router.put('/:id/update', protect, upload.fields([
+  { name: 'passportDocument', maxCount: 1 },
+  { name: 'photoDocument', maxCount: 1 },
+  { name: 'supportingDocument', maxCount: 1 }
+]), visaController.updateApplication);
+
 // Update status (Officer action)
 router.put('/:id/status', protect, officerOnly, visaController.updateStatus);
 

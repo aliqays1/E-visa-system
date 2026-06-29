@@ -106,6 +106,76 @@ exports.applyVisa = async (req, res) => {
   }
 };
 
+// Update an existing application (Needs Revision)
+exports.updateApplication = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const application = await VisaApplication.findById(id);
+
+    if (!application) {
+      return res.status(404).json({ success: false, message: 'Application not found' });
+    }
+
+    // Security check: Only the applicant can update their own application
+    if (application.applicantId.toString() !== req.user._id.toString()) {
+      return res.status(403).json({ success: false, message: 'Not authorized to update this application' });
+    }
+
+    // Only allow updates if Needs Revision
+    if (application.applicationStatus !== 'Needs Revision') {
+      return res.status(400).json({ success: false, message: 'Application is not in Needs Revision status' });
+    }
+
+    const {
+      visaType,
+      purposeOfTravel,
+      personalDetails,
+      travelDetails,
+      visaDuration
+    } = req.body;
+
+    // Retrieve file paths from multer uploads if any new files are provided
+    const passportDocument = req.files && req.files.passportDocument ? req.files.passportDocument[0].filename : application.passportDocument;
+    const photoDocument = req.files && req.files.photoDocument ? req.files.photoDocument[0].filename : application.supportingDocuments[0];
+    const supportingDocument = req.files && req.files.supportingDocument ? req.files.supportingDocument[0].filename : application.supportingDocuments[1];
+
+    // Parse JSON details if sent as strings (via FormData)
+    const parsedPersonalDetails = typeof personalDetails === 'string' ? JSON.parse(personalDetails) : personalDetails;
+    const parsedTravelDetails = typeof travelDetails === 'string' ? JSON.parse(travelDetails) : travelDetails;
+
+    // Update fields
+    application.visaType = visaType || application.visaType;
+    application.purposeOfTravel = purposeOfTravel || application.purposeOfTravel;
+    if (parsedPersonalDetails) {
+      application.personalDetails = parsedPersonalDetails;
+      if (parsedPersonalDetails.passportNumber) {
+        application.passportNumber = parsedPersonalDetails.passportNumber;
+      }
+    }
+    if (parsedTravelDetails) {
+      application.travelDetails = parsedTravelDetails;
+    }
+    if (visaDuration) {
+      application.visaDuration = Number(visaDuration);
+    }
+
+    // Update documents
+    application.passportDocument = passportDocument;
+    application.supportingDocuments = [photoDocument, supportingDocument].filter(Boolean);
+
+    // Reset status to Under Review
+    application.applicationStatus = 'Under Review';
+    application.rejectionReason = ''; // Clear the revision note
+
+    const savedApplication = await application.save();
+
+    res.status(200).json({ success: true, application: savedApplication });
+  } catch (error) {
+    console.error('Error updating visa application:', error);
+    res.status(500).json({ success: false, message: 'Server error updating visa application: ' + error.message });
+  }
+};
+
 // Get current applicant's visa applications
 exports.getMyApplications = async (req, res) => {
   try {

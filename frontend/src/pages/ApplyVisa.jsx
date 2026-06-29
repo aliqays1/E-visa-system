@@ -1,14 +1,17 @@
-import React, { useState, useContext } from 'react';
-import { useNavigate } from 'react-router-dom';
+import React, { useState, useContext, useEffect } from 'react';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { AuthContext } from '../context/AuthContext';
 import { IdentificationIcon, CameraIcon, PaperAirplaneIcon, CreditCardIcon } from '@heroicons/react/24/outline';
+import axios from 'axios';
 
 const ApplyVisa = () => {
-  const { user } = useContext(AuthContext);
+  const { user, token } = useContext(AuthContext);
   const [step, setStep] = useState(1);
   const navigate = useNavigate();
+  const location = useLocation();
   const [isProcessingPayment, setIsProcessingPayment] = useState(false);
   const [paymentSuccess, setPaymentSuccess] = useState(false);
+  const [editId, setEditId] = useState(null);
 
   // Expanded Form State to include necessary fields
   const [formData, setFormData] = useState({
@@ -37,6 +40,46 @@ const ApplyVisa = () => {
     selfieData: null,
     supportingDocData: null
   });
+
+  useEffect(() => {
+    const params = new URLSearchParams(location.search);
+    const editMode = params.get('edit');
+    const id = params.get('id');
+    
+    if (editMode === 'true' && id && token) {
+      setEditId(id);
+      axios.get('/api/visa/my-applications', {
+        headers: { Authorization: `Bearer ${token}` }
+      }).then(res => {
+        if (res.data.success) {
+          const app = res.data.applications.find(a => a._id === id);
+          if (app && app.applicationStatus === 'Needs Revision') {
+            setFormData(prev => ({
+              ...prev,
+              visaType: app.visaType || prev.visaType,
+              purpose: app.purposeOfTravel || prev.purpose,
+              duration: app.visaDuration?.toString() || prev.duration,
+              firstName: app.personalDetails?.firstName || prev.firstName,
+              lastName: app.personalDetails?.lastName || prev.lastName,
+              passportNumber: app.personalDetails?.passportNumber || prev.passportNumber,
+              nationality: app.personalDetails?.nationality || prev.nationality,
+              passportExpiry: app.personalDetails?.passportExpiry ? new Date(app.personalDetails.passportExpiry).toISOString().split('T')[0] : prev.passportExpiry,
+              phone: app.personalDetails?.phone || prev.phone,
+              email: app.personalDetails?.email || prev.email,
+              arrivalDate: app.travelDetails?.arrivalDate ? new Date(app.travelDetails.arrivalDate).toISOString().split('T')[0] : prev.arrivalDate,
+              departureDate: app.travelDetails?.departureDate ? new Date(app.travelDetails.departureDate).toISOString().split('T')[0] : prev.departureDate,
+              hostAddress: app.travelDetails?.hostAddress || prev.hostAddress,
+              passportScanName: app.passportDocument || prev.passportScanName,
+              selfieName: app.supportingDocuments?.[0] || prev.selfieName,
+              supportingDocName: app.supportingDocuments?.[1] || prev.supportingDocName,
+            }));
+            // Skip directly to step 2 in edit mode
+            setStep(2);
+          }
+        }
+      }).catch(err => console.error("Error fetching application to edit", err));
+    }
+  }, [location.search, token]);
 
   const steps = [
     { id: 1, name: 'Guidance & Preparation', desc: 'Read guidelines & checklists' },
@@ -85,13 +128,78 @@ const ApplyVisa = () => {
     }
   };
 
-  const finalizeApplication = () => {
-    localStorage.setItem('pendingVisaApplication', JSON.stringify({ 
-      ...formData, 
-      amountPaid: amountDue, 
-      paymentStatus: formData.paymentMethod === 'Bank Transfer' ? 'Pending' : 'Completed' 
-    }));
-    navigate('/login?redirect=applicant');
+  const finalizeApplication = async () => {
+    if (editId) {
+      const dataURItoBlob = (dataURI) => {
+        if (!dataURI) return null;
+        try {
+          if (!dataURI.startsWith('data:')) return null;
+          const splitDataURI = dataURI.split(',');
+          const byteString = splitDataURI[0].indexOf('base64') >= 0 ? atob(splitDataURI[1]) : decodeURI(splitDataURI[1]);
+          const mimeString = splitDataURI[0].split(':')[1].split(';')[0];
+          const ia = new Uint8Array(byteString.length);
+          for (let i = 0; i < byteString.length; i++) {
+            ia[i] = byteString.charCodeAt(i);
+          }
+          return new Blob([ia], { type: mimeString });
+        } catch (e) {
+          return null;
+        }
+      };
+
+      const formDataToSend = new FormData();
+      formDataToSend.append('visaType', formData.visaType);
+      formDataToSend.append('purposeOfTravel', formData.purpose);
+      formDataToSend.append('visaDuration', formData.duration);
+      formDataToSend.append('personalDetails', JSON.stringify({
+        firstName: formData.firstName,
+        lastName: formData.lastName,
+        passportNumber: formData.passportNumber,
+        nationality: formData.nationality,
+        passportExpiry: formData.passportExpiry,
+        phone: formData.phone,
+        email: formData.email
+      }));
+      formDataToSend.append('travelDetails', JSON.stringify({
+        arrivalDate: formData.arrivalDate,
+        departureDate: formData.departureDate,
+        hostAddress: formData.hostAddress
+      }));
+
+      const passportBlob = dataURItoBlob(formData.passportScanData);
+      if (passportBlob) formDataToSend.append('passportDocument', passportBlob, formData.passportScanName);
+
+      const photoBlob = dataURItoBlob(formData.selfieData);
+      if (photoBlob) formDataToSend.append('photoDocument', photoBlob, formData.selfieName);
+
+      const supportBlob = dataURItoBlob(formData.supportingDocData);
+      if (supportBlob) formDataToSend.append('supportingDocument', supportBlob, formData.supportingDocName);
+
+      try {
+        const res = await axios.put(`/api/visa/${editId}/update`, formDataToSend, {
+          headers: {
+            'Content-Type': 'multipart/form-data',
+            'Authorization': `Bearer ${token}`
+          }
+        });
+        if (res.data.success) {
+          alert('Application updated successfully!');
+          navigate('/applicant');
+        } else {
+          alert('Failed to update: ' + res.data.message);
+        }
+      } catch (error) {
+        console.error(error);
+        alert('Error updating application: ' + (error.response?.data?.message || error.message));
+      }
+    } else {
+      localStorage.setItem('pendingVisaApplication', JSON.stringify({ 
+        ...formData, 
+        amountPaid: amountDue, 
+        paymentStatus: formData.paymentMethod === 'Bank Transfer' ? 'Pending' : 'Completed' 
+      }));
+      navigate('/login?redirect=applicant');
+    }
   };
 
   const handleSubmit = (e) => {
