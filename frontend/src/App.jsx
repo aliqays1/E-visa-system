@@ -31,7 +31,10 @@ const AppLayout = () => {
       {/* Official Government Top Bar */}
       <div className="bg-[#0b1329] text-gray-300 text-[11px] md:text-xs font-semibold py-2.5 px-4 text-center border-b border-slate-800/60 z-50">
         <span className="inline-flex items-center gap-2">
-          <span className="text-sm md:text-base leading-none">🇸🇴</span>
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 30 20" className="w-5 h-3.5 inline-block rounded-sm shadow-sm">
+            <rect width="30" height="20" fill="#4189DD"/>
+            <polygon points="15,5 16.2,8.1 19.8,8.4 16.6,11.2 17.9,14.8 15,12.6 12.1,14.8 13.4,11.2 10.2,8.4 13.8,8.1" fill="white"/>
+          </svg>
           <span>Official Portal of the Federal Republic of Somalia — Immigration & Citizenship Service</span>
         </span>
       </div>
