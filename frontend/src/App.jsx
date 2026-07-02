@@ -1,3 +1,4 @@
+import { useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route, useLocation } from 'react-router-dom';
 import Login from './pages/Login';
 import Register from './pages/Register';
@@ -16,6 +17,11 @@ import AuditorDashboard from './pages/AuditorDashboard';
 
 const AppLayout = () => {
   const location = useLocation();
+  
+  useEffect(() => {
+    window.scrollTo(0, 0);
+  }, [location.pathname]);
+
   const isDashboard = location.pathname.startsWith('/admin') || 
                       location.pathname.startsWith('/applicant') || 
                       location.pathname.startsWith('/auditor');

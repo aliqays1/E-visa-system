@@ -44,7 +44,7 @@ const About = () => {
             <p className="text-gray-600 mb-8 leading-relaxed">
               The Immigration and Citizenship Service ensures strict compliance with national security while maintaining an efficient, user-friendly digital application experience.
             </p>
-            <Link to="/apply" className="px-8 py-3 border border-red-200 text-red-600 font-bold rounded-lg hover:bg-red-50 transition-colors inline-block shadow-sm">
+            <Link to="/apply" className="inline-block bg-red-600 hover:bg-red-700 text-white font-bold px-8 py-3 rounded-xl transition-all duration-300 shadow-lg shadow-red-500/30 hover:shadow-red-500/40 hover:-translate-y-0.5 active:scale-[0.98] text-center">
               Start Application
             </Link>
           </div>
