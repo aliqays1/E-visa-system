@@ -28,6 +28,13 @@ const AppLayout = () => {
 
   return (
     <div className="min-h-screen bg-background font-sans text-gray-800 flex flex-col">
+      {/* Official Government Top Bar */}
+      <div className="bg-[#0b1329] text-gray-300 text-[11px] md:text-xs font-semibold py-2.5 px-4 text-center border-b border-slate-800/60 z-50">
+        <span className="inline-flex items-center gap-2">
+          <span className="text-sm md:text-base leading-none">🇸🇴</span>
+          <span>Official Portal of the Federal Republic of Somalia — Immigration & Citizenship Service</span>
+        </span>
+      </div>
       <div className="flex-grow">
         <Routes>
           <Route path="/" element={<Home />} />

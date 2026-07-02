@@ -1,6 +1,8 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
 import { GlobeAltIcon, PhoneIcon } from '@heroicons/react/24/outline';
+import tabletImg from '../assets/somalia-evisa-tablet.jpg';
+import globeImg from '../assets/world-flags-globe.png';
 
 const About = () => {
   return (
@@ -50,14 +52,51 @@ const About = () => {
           </div>
           <div className="relative">
             <img 
-              src="https://images.unsplash.com/photo-1436491865332-7a61a109cc05?auto=format&fit=crop&q=80" 
-              alt="Airplane and Map" 
-              className="rounded-2xl shadow-2xl"
+              src={tabletImg} 
+              alt="Somalia E-Visa Portal" 
+              className="rounded-2xl shadow-2xl border-4 border-white"
             />
             <div className="absolute -bottom-6 -left-6 bg-white p-6 rounded-xl shadow-xl border border-gray-100 hidden md:block">
               <div className="text-4xl font-extrabold text-primary mb-1 text-center">100%</div>
               <div className="text-sm font-bold text-gray-800 uppercase tracking-wider text-center">Online Process</div>
             </div>
+          </div>
+        </div>
+
+        {/* Global eligibility section */}
+        <div className="mt-32 grid grid-cols-1 md:grid-cols-2 gap-16 items-center border-t border-gray-100 pt-20">
+          <div className="order-2 md:order-1 flex justify-center">
+            <div className="relative max-w-xs">
+              <img 
+                src={globeImg} 
+                alt="Global Visa Eligibility" 
+                className="rounded-full shadow-2xl max-h-[280px] object-contain animate-[spin_60s_linear_infinite]"
+              />
+              <div className="absolute -top-4 -right-4 bg-primary text-white p-4 rounded-xl shadow-lg border border-primary/20">
+                <div className="text-2xl font-black">190+</div>
+                <div className="text-[10px] font-bold uppercase tracking-wider">Countries</div>
+              </div>
+            </div>
+          </div>
+          <div className="order-1 md:order-2">
+            <h3 className="text-3xl font-bold text-gray-900 mb-6 leading-tight">Global Eligibility & e-Visa Access</h3>
+            <p className="text-gray-600 mb-6 leading-relaxed">
+              The Federal Republic of Somalia welcomes international visitors. Citizens from over 190 countries can utilize this official portal to submit their application, pay processing fees, and receive verified entry credentials.
+            </p>
+            <ul className="space-y-3.5 text-gray-700 font-medium">
+              <li className="flex items-center gap-3">
+                <span className="flex-shrink-0 w-6 h-6 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center text-xs">✓</span>
+                <span>Universal electronic application form</span>
+              </li>
+              <li className="flex items-center gap-3">
+                <span className="flex-shrink-0 w-6 h-6 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center text-xs">✓</span>
+                <span>Fast vetting and identity authentication</span>
+              </li>
+              <li className="flex items-center gap-3">
+                <span className="flex-shrink-0 w-6 h-6 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center text-xs">✓</span>
+                <span>Official QR-coded travel authorization letter</span>
+              </li>
+            </ul>
           </div>
         </div>
 
@@ -72,7 +111,7 @@ const About = () => {
             <div className="bg-white p-8 rounded-xl shadow-sm border border-gray-200 text-center hover:border-primary transition-colors">
               <div className="text-4xl mb-4">📞</div>
               <h4 className="font-bold text-lg mb-2">Phone</h4>
-              <p className="text-gray-600 text-sm">+252 (61) 000 0000<br/>Mon-Fri, 8am-5pm</p>
+              <p className="text-gray-600 text-sm">+252 (61) 000 0000<br/>sat-wed, 8am-5pm</p>
             </div>
             <div className="bg-white p-8 rounded-xl shadow-sm border border-gray-200 text-center hover:border-primary transition-colors">
               <div className="text-4xl mb-4">✉️</div>
