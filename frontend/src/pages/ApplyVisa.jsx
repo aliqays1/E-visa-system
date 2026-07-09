@@ -5,7 +5,8 @@ import { IdentificationIcon, CameraIcon, PaperAirplaneIcon, CreditCardIcon } fro
 import axios from 'axios';
 
 const ApplyVisa = () => {
-  const { user, token } = useContext(AuthContext);
+  const { user } = useContext(AuthContext);
+  const token = user ? user.token : null;
   const [step, setStep] = useState(1);
   const navigate = useNavigate();
   const location = useLocation();

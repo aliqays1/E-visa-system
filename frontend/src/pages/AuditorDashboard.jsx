@@ -15,6 +15,8 @@ import {
   ArrowDownTrayIcon,
   PresentationChartLineIcon
 } from '@heroicons/react/24/outline';
+import jsPDF from 'jspdf';
+import autoTable from 'jspdf-autotable';
 
 const AuditorDashboard = () => {
   const { user, logout, loading: authLoading } = useContext(AuthContext);
@@ -51,24 +53,72 @@ const AuditorDashboard = () => {
     return match;
   });
 
-  const handleDownloadCSV = () => {
-    let csvContent = "data:text/csv;charset=utf-8,";
-    csvContent += "Applicant Name,Passport,Visa Type,Submission Date,Application Status,Payment Status,Amount\n";
+  const handleDownloadPDF = () => {
+    const doc = new jsPDF();
+    
+    // Header text
+    doc.setFontSize(18);
+    doc.setTextColor(17, 24, 39); // text-gray-900
+    doc.text("Visa Operations Report", 14, 22);
+    
+    doc.setFontSize(10);
+    doc.setTextColor(107, 114, 128); // text-gray-500
+    doc.text(`Generated on: ${new Date().toLocaleString()}`, 14, 30);
+    
+    // Filters info
+    doc.setFontSize(10);
+    doc.setTextColor(31, 41, 55); // text-gray-800
+    doc.text(`Period: ${reportMonth || 'All Time'}    Visa Status: ${reportStatus}    Payment Status: ${reportPayment}`, 14, 40);
+    
+    // Summary info
+    const totalRev = filteredReportApps.filter(a => a.paymentStatus === 'Completed').reduce((s, a) => s + (a.paymentDetails?.amountPaid || 100), 0).toLocaleString();
+    doc.setFontSize(10);
+    doc.setTextColor(79, 70, 229); // text-indigo-600
+    doc.text(`Total Records: ${filteredReportApps.length}`, 14, 50);
+    doc.setTextColor(22, 163, 74); // text-green-600
+    doc.text(`Total Revenue: $${totalRev}`, 50, 50);
+    
+    // Table
+    const tableColumn = ["Applicant Name", "Passport", "Visa Type", "Submission Date", "Status", "Payment"];
+    const tableRows = [];
+
     filteredReportApps.forEach(app => {
       const name = `${app.personalDetails?.firstName || ''} ${app.personalDetails?.lastName || ''}`;
       const passport = app.personalDetails?.passportNumber || '';
+      const type = app.visaType || '';
       const date = new Date(app.createdAt).toLocaleDateString();
-      const amt = app.paymentStatus === 'Completed' ? (app.paymentDetails?.amountPaid || 100) : 0;
-      const row = `"${name}","${passport}","${app.visaType}","${date}","${app.applicationStatus}","${app.paymentStatus || 'Pending'}","${amt}"`;
-      csvContent += row + "\n";
+      const status = app.applicationStatus || '';
+      const payment = app.paymentStatus === 'Completed' ? `$${app.paymentDetails?.amountPaid || 100}` : (app.paymentStatus || 'Pending');
+      
+      tableRows.push([name, passport, type, date, status, payment]);
     });
-    const encodedUri = encodeURI(csvContent);
-    const link = document.createElement("a");
-    link.setAttribute("href", encodedUri);
-    link.setAttribute("download", `visa_report_${reportMonth || 'all'}.csv`);
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+
+    autoTable(doc, {
+      startY: 55,
+      head: [tableColumn],
+      body: tableRows,
+      theme: 'grid',
+      headStyles: { fillColor: [249, 250, 251], textColor: [107, 114, 128], fontStyle: 'bold' },
+      styles: { fontSize: 9, cellPadding: 4 },
+      didParseCell: function(data) {
+        if (data.section === 'body') {
+           // Color Status and Payment
+           if (data.column.index === 4) { // Status
+             const val = data.cell.raw.toString().toUpperCase();
+             if (val === 'APPROVED') data.cell.styles.textColor = [22, 163, 74];
+             else if (val === 'REJECTED') data.cell.styles.textColor = [220, 38, 38];
+             else data.cell.styles.textColor = [202, 138, 4];
+           }
+           if (data.column.index === 5) { // Payment
+             const val = data.cell.raw.toString().toUpperCase();
+             if (val.startsWith('$')) data.cell.styles.textColor = [22, 163, 74];
+             else data.cell.styles.textColor = [107, 114, 128];
+           }
+        }
+      }
+    });
+
+    doc.save(`visa_report_${reportMonth || 'all'}.pdf`);
   };
 
   const handlePrint = () => {
@@ -78,6 +128,8 @@ const AuditorDashboard = () => {
   useEffect(() => {
     if (token && user && user.role === 'auditor') {
       fetchData();
+    } else {
+      setLoading(false);
     }
   }, [token, user]);
 
@@ -543,15 +595,15 @@ const AuditorDashboard = () => {
               )}
 
               {activeTab === 'reports' && (
-                <div className="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden print:shadow-none print:border-none">
+                <div id="report-content" className="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden print:shadow-none print:border-none">
                   <div className="px-6 py-5 border-b border-gray-200 bg-gray-50 flex justify-between items-center print:hidden">
                     <h3 className="text-lg font-bold text-gray-900">Custom Reports & Analytics</h3>
                     <div className="flex space-x-3">
                        <button onClick={handlePrint} className="px-4 py-2 bg-gray-200 hover:bg-gray-300 text-gray-800 rounded-lg text-sm font-bold flex items-center shadow-sm">
                          <PrinterIcon className="h-4 w-4 mr-2" /> Print Report
                        </button>
-                       <button onClick={handleDownloadCSV} className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-sm font-bold flex items-center shadow-sm">
-                         <ArrowDownTrayIcon className="h-4 w-4 mr-2" /> Download CSV
+                       <button onClick={handleDownloadPDF} className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-sm font-bold flex items-center shadow-sm">
+                         <ArrowDownTrayIcon className="h-4 w-4 mr-2" /> Download PDF
                        </button>
                     </div>
                   </div>

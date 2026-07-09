@@ -33,7 +33,10 @@ const OfficerDashboard = () => {
   const token = user ? user.token : null;
 
   const fetchApplications = async () => {
-    if (!token) return;
+    if (!token) {
+      setLoading(false);
+      return;
+    }
     try {
       const res = await axios.get('/api/visa/all', {
         headers: { 'Authorization': `Bearer ${token}` }
@@ -508,15 +511,15 @@ const OfficerDashboard = () => {
                 <div className="grid grid-cols-3 gap-4 text-xs">
                   <div>
                     <span className="text-gray-500 block mb-1">Passport Scan</span>
-                    {selectedApplication.passportDocument ? <a href={`/uploads/${selectedApplication.passportDocument.split(/[\\/]/).pop()}`} target="_blank" rel="noreferrer" className="text-blue-600 hover:underline font-bold">📄 View Passport</a> : 'N/A'}
+                    {selectedApplication.passportDocument ? <a href={`${import.meta.env.VITE_API_URL || ''}/uploads/${selectedApplication.passportDocument.split(/[\\/]/).pop()}`} target="_blank" rel="noreferrer" className="text-blue-600 hover:underline font-bold">📄 View Passport</a> : 'N/A'}
                   </div>
                   <div>
                     <span className="text-gray-500 block mb-1">Applicant Photo</span>
-                    {selectedApplication.supportingDocuments && selectedApplication.supportingDocuments[0] ? <a href={`/uploads/${selectedApplication.supportingDocuments[0].split(/[\\/]/).pop()}`} target="_blank" rel="noreferrer" className="text-blue-600 hover:underline font-bold">📷 View Photo</a> : 'N/A'}
+                    {selectedApplication.supportingDocuments && selectedApplication.supportingDocuments[0] ? <a href={`${import.meta.env.VITE_API_URL || ''}/uploads/${selectedApplication.supportingDocuments[0].split(/[\\/]/).pop()}`} target="_blank" rel="noreferrer" className="text-blue-600 hover:underline font-bold">📷 View Photo</a> : 'N/A'}
                   </div>
                   <div>
                     <span className="text-gray-500 block mb-1">Bank Statement</span>
-                    {selectedApplication.supportingDocuments && selectedApplication.supportingDocuments[1] ? <a href={`/uploads/${selectedApplication.supportingDocuments[1].split(/[\\/]/).pop()}`} target="_blank" rel="noreferrer" className="text-blue-600 hover:underline font-bold">🏦 View Statement</a> : 'N/A'}
+                    {selectedApplication.supportingDocuments && selectedApplication.supportingDocuments[1] ? <a href={`${import.meta.env.VITE_API_URL || ''}/uploads/${selectedApplication.supportingDocuments[1].split(/[\\/]/).pop()}`} target="_blank" rel="noreferrer" className="text-blue-600 hover:underline font-bold">🏦 View Statement</a> : 'N/A'}
                   </div>
                 </div>
               </div>

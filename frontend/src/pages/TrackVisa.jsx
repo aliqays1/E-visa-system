@@ -146,7 +146,7 @@ const TrackVisa = () => {
         <div className="mt-8 flex gap-4">
           {visaData.pdfUrl && !isOverstay && (
             <a 
-              href={`/${visaData.pdfUrl.replace(/\\/g, '/')}`}
+              href={`${import.meta.env.VITE_API_URL || ''}/${visaData.pdfUrl.replace(/\\/g, '/')}`}
               target="_blank"
               rel="noreferrer"
               className="flex-grow bg-primary hover:bg-blue-700 text-white font-bold py-4 rounded-xl text-center shadow-lg shadow-blue-500/30 transition-all text-center flex items-center justify-center"
