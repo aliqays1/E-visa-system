@@ -12,7 +12,9 @@ import {
   BanknotesIcon,
   ShieldCheckIcon,
   ExclamationTriangleIcon,
-  Bars3Icon
+  Bars3Icon,
+  ChevronLeftIcon,
+  ChevronRightIcon
 } from '@heroicons/react/24/outline';
 
 const OfficerDashboard = () => {
@@ -26,34 +28,90 @@ const OfficerDashboard = () => {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const navigate = useNavigate();
 
+  // Pagination states
+  const [page, setPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [totalItems, setTotalItems] = useState(0);
+
+  // Stats state
+  const [stats, setStats] = useState({ totalApps: 0, pendingApps: 0, approvedApps: 0, rejectedApps: 0, overstays: 0 });
+
   // Border Control states
   const [scanToken, setScanToken] = useState('');
+  const [newlyDetectedOverstays, setNewlyDetectedOverstays] = useState([]);
 
   // Retrieve user token
   const token = user ? user.token : null;
 
-  const fetchApplications = async () => {
+  const fetchStats = React.useCallback(async () => {
+    if (!token) return;
+    try {
+      const res = await axios.get('/api/visa/stats', {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      if (res.data.success) {
+        setStats(res.data.stats);
+      }
+    } catch (error) {
+      console.error('Error fetching stats:', error);
+    }
+  }, [token]);
+
+  const fetchApplications = React.useCallback(async (tabOverride, signal) => {
     if (!token) {
       setLoading(false);
       return;
     }
+    setLoading(true);
     try {
-      const res = await axios.get('/api/visa/all', {
-        headers: { 'Authorization': `Bearer ${token}` }
+      let url = `/api/visa/all?page=1&limit=1000&search=${encodeURIComponent(searchQuery)}`;
+      const currentTab = typeof tabOverride === 'string' ? tabOverride : activeTab;
+      
+      if (currentTab === 'payments') url += '&paymentStatus=Pending';
+      else if (currentTab === 'border') url += '&entryStatus=Entered,Exited';
+      else if (currentTab === 'alerts') url += '&overstayAlert=true';
+
+      const res = await axios.get(url, {
+        headers: { 'Authorization': `Bearer ${token}` },
+        signal: signal
       });
       if (res.data.success) {
         setApplications(res.data.applications);
+        setTotalPages(res.data.pagination.pages);
+        setTotalItems(res.data.pagination.total);
       }
     } catch (error) {
-      console.error('Error fetching applications:', error);
+      if (axios.isCancel(error)) {
+        console.log('Request canceled', error.message);
+      } else {
+        console.error('Error fetching applications:', error);
+      }
     } finally {
       setLoading(false);
     }
+  }, [token, page, searchQuery, activeTab]);
+
+  const handleTabChange = (tab) => {
+    if (activeTab === tab) return;
+    setApplications([]); // Synchronously clear applications to prevent data leaks between tabs
+    setPage(1);
+    setActiveTab(tab);
   };
 
   useEffect(() => {
-    fetchApplications();
-  }, [token]);
+    fetchStats();
+  }, [fetchStats]);
+
+  useEffect(() => {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => {
+      fetchApplications(undefined, controller.signal);
+    }, 300);
+    return () => {
+      clearTimeout(timeout);
+      controller.abort();
+    };
+  }, [fetchApplications, page, searchQuery]);
 
   const handleUpdateStatus = async (id, newStatus) => {
     try {
@@ -74,9 +132,11 @@ const OfficerDashboard = () => {
 
       if (res.data.success) {
         alert(`Application status successfully updated to ${newStatus}!`);
+        // Optimistic update
+        setApplications(prev => prev.map(app => app._id === id ? { ...app, applicationStatus: newStatus } : app));
         setSelectedApplication(null);
         setRejectionReason('');
-        fetchApplications();
+        fetchStats();
       } else {
         alert('Failed to update status: ' + res.data.message);
       }
@@ -115,7 +175,8 @@ const OfficerDashboard = () => {
 
       if (res.data.success) {
         alert(`Payment marked as ${status}!`);
-        fetchApplications();
+        setApplications(prev => prev.filter(app => app._id !== id));
+        fetchStats();
       }
     } catch (error) {
       console.error(error);
@@ -141,11 +202,14 @@ const OfficerDashboard = () => {
     if (extractedToken.includes('token=')) {
       extractedToken = extractedToken.split('token=')[1].split('&')[0];
     }
-    // Find app by secureToken
-    const app = applications.find(a => a.secureToken === extractedToken);
-    if (!app) return alert('No application found with that token!');
-
+    
     try {
+      const resApp = await axios.get(`/api/visa/all?search=${extractedToken}`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      const app = resApp.data.applications.find(a => a.secureToken === extractedToken);
+      if (!app) return alert('No application found with that token!');
+
       const res = await axios.post(`/api/visa/${app._id}/${action}`, {}, {
         headers: { 'Authorization': `Bearer ${token}` }
       });
@@ -161,13 +225,15 @@ const OfficerDashboard = () => {
   };
 
   const checkOverstays = async () => {
-    setActiveTab('alerts');
+    handleTabChange('alerts');
     try {
       const res = await axios.post('/api/visa/check-overstays', {}, {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       if (res.data.success) {
-        fetchApplications();
+        setNewlyDetectedOverstays(res.data.newOverstayIds || []);
+        fetchStats();
+        fetchApplications('alerts');
       }
     } catch (error) {
       console.error(error);
@@ -187,20 +253,9 @@ const OfficerDashboard = () => {
     return <Navigate to="/login" replace />;
   }
 
-  const totalApps = applications.length;
-  const pendingApps = applications.filter(app => ['Submitted', 'Pending', 'Under Review', 'Needs Revision'].includes(app.applicationStatus)).length;
-  const approvedApps = applications.filter(app => app.applicationStatus === 'Approved').length;
-  const rejectedApps = applications.filter(app => app.applicationStatus === 'Rejected').length;
-  const overstays = applications.filter(app => app.overstayAlert).length;
+  const { totalApps, pendingApps, approvedApps, rejectedApps, overstays } = stats;
 
-  const filteredApps = applications.filter(app => {
-    const fullName = `${app.personalDetails?.firstName || ''} ${app.personalDetails?.lastName || ''}`.toLowerCase();
-    const passport = (app.personalDetails?.passportNumber || '').toLowerCase();
-    const email = (app.personalDetails?.email || '').toLowerCase();
-    const token = (app.secureToken || '').toLowerCase();
-    const query = searchQuery.toLowerCase();
-    return fullName.includes(query) || passport.includes(query) || email.includes(query) || app._id.includes(query) || token.includes(query);
-  });
+  const filteredApps = applications;
 
   return (
     <div className="flex h-screen bg-[#F4F7FA] font-sans text-gray-800 absolute inset-0 z-50 overflow-hidden">
@@ -212,18 +267,18 @@ const OfficerDashboard = () => {
         </div>
         <div className="p-4 mt-2">
           <p className="text-[11px] font-bold text-white/50 uppercase tracking-widest mb-4 px-2">Navigation</p>
-          <nav className="space-y-2">
-            <button onClick={() => setActiveTab('review')} className={`w-full flex items-center px-3 py-3 rounded-xl font-medium transition-all duration-200 ${activeTab === 'review' ? 'bg-white/20 text-white shadow-md' : 'text-white/70 hover:bg-white/10 hover:text-white'}`}>
-              <HomeIcon className="h-5 w-5 mr-3" /> Application Review
+          <nav className="flex-1 space-y-2 mt-4 px-3">
+            <button onClick={() => handleTabChange('review')} className={`w-full flex items-center justify-start px-3 py-3 rounded-xl font-medium transition-all duration-200 text-left ${activeTab === 'review' ? 'bg-white/20 text-white shadow-md' : 'text-white/70 hover:bg-white/10 hover:text-white'}`}>
+              <HomeIcon className="w-5 h-5 mr-3 flex-shrink-0" /> <span className="leading-tight">Application Review</span>
             </button>
-            <button onClick={() => setActiveTab('payments')} className={`w-full flex items-center px-3 py-3 rounded-xl font-medium transition-all duration-200 ${activeTab === 'payments' ? 'bg-white/20 text-white shadow-md' : 'text-white/70 hover:bg-white/10 hover:text-white'}`}>
-              <BanknotesIcon className="h-5 w-5 mr-3" /> Payment Verifications
+            <button onClick={() => handleTabChange('payments')} className={`w-full flex items-center justify-start px-3 py-3 rounded-xl font-medium transition-all duration-200 text-left ${activeTab === 'payments' ? 'bg-white/20 text-white shadow-md' : 'text-white/70 hover:bg-white/10 hover:text-white'}`}>
+              <BanknotesIcon className="w-5 h-5 mr-3 flex-shrink-0" /> <span className="leading-tight">Payment Verifications</span>
             </button>
-            <button onClick={() => setActiveTab('border')} className={`w-full flex items-center px-3 py-3 rounded-xl font-medium transition-all duration-200 ${activeTab === 'border' ? 'bg-white/20 text-white shadow-md' : 'text-white/70 hover:bg-white/10 hover:text-white'}`}>
-              <ShieldCheckIcon className="h-5 w-5 mr-3" /> Border Control
+            <button onClick={() => handleTabChange('border')} className={`w-full flex items-center justify-start px-3 py-3 rounded-xl font-medium transition-all duration-200 text-left ${activeTab === 'border' ? 'bg-white/20 text-white shadow-md' : 'text-white/70 hover:bg-white/10 hover:text-white'}`}>
+              <ShieldCheckIcon className="w-5 h-5 mr-3 flex-shrink-0" /> <span className="leading-tight">Border Control</span>
             </button>
-            <button onClick={() => setActiveTab('alerts')} className={`w-full flex items-center px-3 py-3 rounded-xl font-medium transition-all duration-200 ${activeTab === 'alerts' ? 'bg-red-500/80 text-white shadow-md' : 'text-white/70 hover:bg-white/10 hover:text-white'}`}>
-              <ExclamationTriangleIcon className="h-5 w-5 mr-3" /> Overstays & Alerts
+            <button onClick={() => handleTabChange('alerts')} className={`w-full flex items-center justify-start px-3 py-3 rounded-xl font-medium transition-all duration-200 text-left ${activeTab === 'alerts' ? 'bg-red-500/80 text-white shadow-md' : 'text-white/70 hover:bg-white/10 hover:text-white'}`}>
+              <ExclamationTriangleIcon className="w-5 h-5 mr-3 flex-shrink-0" /> <span className="leading-tight">Overstays & Alerts</span>
             </button>
           </nav>
         </div>
@@ -307,10 +362,7 @@ const OfficerDashboard = () => {
                 <div className="px-8 py-6 border-b border-gray-100 flex justify-between items-center bg-white">
                   <h3 className="text-xl font-extrabold text-gray-900 tracking-tight">E-Visa Applications Registry</h3>
                 </div>
-                {loading ? (
-                  <div className="text-center py-16 text-gray-500 font-medium animate-pulse">Loading applications...</div>
-                ) : (
-                  <div className="overflow-x-auto">
+                <div className="overflow-x-auto">
                     <table className="w-full text-left border-collapse">
                       <thead>
                         <tr className="bg-gray-50 text-gray-500 text-xs uppercase tracking-widest border-b-2 border-gray-200">
@@ -322,6 +374,12 @@ const OfficerDashboard = () => {
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-gray-100 text-sm">
+                        {loading && (
+                          <tr><td colSpan="5" className="px-8 py-10 text-center"><div className="inline-flex items-center justify-center space-x-2 text-gray-400"><svg className="animate-spin h-5 w-5 text-blue-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg><span className="font-medium animate-pulse">Loading records...</span></div></td></tr>
+                        )}
+                        {!loading && filteredApps.length === 0 && (
+                          <tr><td colSpan="5" className="px-8 py-10 text-center text-gray-500 font-medium">No records found.</td></tr>
+                        )}
                         {filteredApps.map((app) => (
                           <tr key={app._id} className="hover:bg-blue-50/40 transition-all duration-200 group">
                             <td className="px-8 py-5">
@@ -336,7 +394,7 @@ const OfficerDashboard = () => {
                                 app.applicationStatus === 'Rejected' ? 'bg-rose-50 text-rose-700 border-rose-200' :
                                 app.applicationStatus === 'Needs Revision' ? 'bg-amber-50 text-amber-700 border-amber-200' :
                                 'bg-blue-50 text-blue-700 border-blue-200'
-                              }`}>{app.applicationStatus}</span>
+                              }`}>{app.applicationStatus === 'Under Review' ? 'Updated Revision' : app.applicationStatus}</span>
                             </td>
                             <td className="px-8 py-5 text-right">
                               <button onClick={() => setSelectedApplication(app)} className="text-white bg-primary hover:bg-blue-800 px-5 py-2 rounded-xl transition-all duration-300 font-bold shadow-md hover:shadow-lg transform hover:-translate-y-0.5">Review</button>
@@ -346,7 +404,6 @@ const OfficerDashboard = () => {
                       </tbody>
                     </table>
                   </div>
-                )}
               </div>
             </>
           )}
@@ -368,7 +425,13 @@ const OfficerDashboard = () => {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-100 text-sm">
-                    {filteredApps.filter(app => app.paymentStatus === 'Pending').map((app) => (
+                    {loading && (
+                      <tr><td colSpan="4" className="px-6 py-10 text-center"><div className="inline-flex items-center justify-center space-x-2 text-gray-400"><svg className="animate-spin h-5 w-5 text-blue-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg><span className="font-medium animate-pulse">Loading records...</span></div></td></tr>
+                    )}
+                    {!loading && filteredApps.length === 0 && (
+                      <tr><td colSpan="4" className="px-6 py-10 text-center text-gray-500 font-medium">No records found.</td></tr>
+                    )}
+                    {filteredApps.map((app) => (
                       <tr key={app._id} className="hover:bg-gray-50/50 transition-colors">
                         <td className="px-6 py-4 font-mono text-xs text-gray-500">{app._id}</td>
                         <td className="px-6 py-4">
@@ -424,7 +487,13 @@ const OfficerDashboard = () => {
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-gray-100 text-sm">
-                      {filteredApps.filter(app => ['Entered', 'Exited'].includes(app.entryStatus)).map((app) => (
+                      {loading && (
+                        <tr><td colSpan="5" className="px-6 py-10 text-center"><div className="inline-flex items-center justify-center space-x-2 text-gray-400"><svg className="animate-spin h-5 w-5 text-blue-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg><span className="font-medium animate-pulse">Loading records...</span></div></td></tr>
+                      )}
+                      {!loading && filteredApps.length === 0 && (
+                        <tr><td colSpan="5" className="px-6 py-10 text-center text-gray-500 font-medium">No records found.</td></tr>
+                      )}
+                      {filteredApps.map((app) => (
                         <tr key={app._id} className="hover:bg-gray-50/50 transition-colors">
                           <td className="px-6 py-4">
                              <div className="font-bold text-gray-900 text-base capitalize">{app.personalDetails?.firstName} {app.personalDetails?.lastName}</div>
@@ -462,9 +531,15 @@ const OfficerDashboard = () => {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-red-100 text-sm">
-                    {filteredApps.filter(app => app.overstayAlert).map((app) => (
-                      <tr key={app._id} className="hover:bg-red-50/30 transition-colors">
-                        <td className="px-6 py-4 text-gray-800 font-bold">{app.personalDetails?.firstName} {app.personalDetails?.lastName}</td>
+                    {loading && (
+                      <tr><td colSpan="5" className="px-6 py-10 text-center"><div className="inline-flex items-center justify-center space-x-2 text-red-400"><svg className="animate-spin h-5 w-5 text-red-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg><span className="font-medium animate-pulse">Loading alerts...</span></div></td></tr>
+                    )}
+                    {filteredApps.map((app) => (
+                      <tr key={app._id} className={`transition-colors ${newlyDetectedOverstays.includes(app._id) ? 'bg-red-100/80 hover:bg-red-200 border-l-4 border-red-500 animate-pulse' : 'hover:bg-red-50/30'}`}>
+                        <td className="px-6 py-4 text-gray-800 font-bold">
+                          {app.personalDetails?.firstName} {app.personalDetails?.lastName}
+                          {newlyDetectedOverstays.includes(app._id) && <span className="ml-3 px-2 py-0.5 text-[10px] bg-red-600 text-white rounded-full font-bold uppercase tracking-widest">NEW</span>}
+                        </td>
                         <td className="px-6 py-4 text-gray-600">{app.personalDetails?.passportNumber}</td>
                         <td className="px-6 py-4 text-gray-600">{new Date(app.entryDate).toLocaleDateString()}</td>
                         <td className="px-6 py-4 text-red-600 font-bold">{new Date(app.expirationDate).toLocaleDateString()}</td>
@@ -473,7 +548,7 @@ const OfficerDashboard = () => {
                         </td>
                       </tr>
                     ))}
-                    {filteredApps.filter(app => app.overstayAlert).length === 0 && (
+                    {!loading && filteredApps.length === 0 && (
                       <tr><td colSpan="5" className="text-center py-10 text-gray-500">No active alerts. System is clear.</td></tr>
                     )}
                   </tbody>
@@ -481,6 +556,9 @@ const OfficerDashboard = () => {
               </div>
             </div>
           )}
+
+
+
 
         </main>
       </div>
@@ -501,9 +579,20 @@ const OfficerDashboard = () => {
                 <h4 className="text-xs font-bold uppercase tracking-wider text-gray-400 mb-3 border-b border-gray-100 pb-1">Personal Details</h4>
                 <div className="grid grid-cols-2 gap-4 text-sm">
                   <div><span className="text-gray-500 text-xs block">Full Name</span><span className="font-semibold text-gray-800">{selectedApplication.personalDetails?.firstName} {selectedApplication.personalDetails?.lastName}</span></div>
-                  <div><span className="text-gray-500 text-xs block">Passport Number</span><span className="font-mono font-semibold text-gray-800">{selectedApplication.personalDetails?.passportNumber || 'N/A'}</span></div>
+                  <div><span className="text-gray-500 text-xs block">Passport Number</span><span className="font-mono font-semibold text-gray-800">{selectedApplication.personalDetails?.passportNumber || selectedApplication.passportNumber || 'N/A'}</span></div>
                   <div><span className="text-gray-500 text-xs block">Nationality</span><span className="font-semibold text-gray-800">{selectedApplication.personalDetails?.nationality || 'N/A'}</span></div>
                   <div><span className="text-gray-500 text-xs block">Email Address</span><span className="font-semibold text-gray-800">{selectedApplication.personalDetails?.email || 'N/A'}</span></div>
+                  <div><span className="text-gray-500 text-xs block">Passport Expiry Date</span><span className="font-semibold text-gray-800">{selectedApplication.personalDetails?.passportExpiry ? new Date(selectedApplication.personalDetails.passportExpiry).toLocaleDateString() : 'N/A'}</span></div>
+                  <div><span className="text-gray-500 text-xs block">Purpose of Travel</span><span className="font-semibold text-gray-800">{selectedApplication.purposeOfTravel || 'N/A'}</span></div>
+                </div>
+              </div>
+              <div>
+                <h4 className="text-xs font-bold uppercase tracking-wider text-gray-400 mb-3 border-b border-gray-100 pb-1">Travel Details</h4>
+                <div className="grid grid-cols-2 gap-4 text-sm">
+                  <div className="col-span-2"><span className="text-gray-500 text-xs block">Lodging / Host Address in Somalia</span><span className="font-semibold text-gray-800">{selectedApplication.travelDetails?.hostAddress || 'N/A'}</span></div>
+                  <div><span className="text-gray-500 text-xs block">Expected Arrival Date</span><span className="font-semibold text-gray-800">{selectedApplication.travelDetails?.arrivalDate ? new Date(selectedApplication.travelDetails.arrivalDate).toLocaleDateString() : 'N/A'}</span></div>
+                  <div><span className="text-gray-500 text-xs block">Expected Departure Date</span><span className="font-semibold text-gray-800">{selectedApplication.travelDetails?.departureDate ? new Date(selectedApplication.travelDetails.departureDate).toLocaleDateString() : 'N/A'}</span></div>
+                  <div><span className="text-gray-500 text-xs block">Duration (Days)</span><span className="font-semibold text-gray-800">{selectedApplication.visaDuration || 'N/A'}</span></div>
                 </div>
               </div>
               <div>

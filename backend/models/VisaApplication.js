@@ -1,8 +1,8 @@
 const mongoose = require('mongoose');
 
 const visaApplicationSchema = new mongoose.Schema({
-  applicantId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
-  visaType: { type: String, enum: ['Tourism', 'Tourist', 'Study', 'Student', 'Work', 'Worker', 'Medical', 'Business', 'Family', 'Diplomatic'], required: true },
+  applicantId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true, index: true },
+  visaType: { type: String, enum: ['Tourism', 'Tourist', 'Study', 'Student', 'Work', 'Worker', 'Medical', 'Business', 'Family', 'Diplomatic'], required: true, index: true },
   purposeOfTravel: { type: String, required: true },
   passportNumber: { type: String }, // Top-level for easy DB visibility
   passportDocument: { type: String }, // URL/path to stored file
@@ -14,7 +14,7 @@ const visaApplicationSchema = new mongoose.Schema({
     transactionId: String,
     amountPaid: Number
   },
-  applicationStatus: { type: String, enum: ['Submitted', 'Pending', 'Under Review', 'Needs Revision', 'Approved', 'Rejected', 'Expired'], default: 'Submitted' },
+  applicationStatus: { type: String, enum: ['Submitted', 'Pending', 'Under Review', 'Needs Revision', 'Approved', 'Rejected', 'Expired'], default: 'Submitted', index: true },
   officerId: { type: mongoose.Schema.Types.ObjectId, ref: 'User' }, // The officer who processed it
   rejectionReason: { type: String },
   visaDuration: { type: Number }, // in days
@@ -22,7 +22,7 @@ const visaApplicationSchema = new mongoose.Schema({
   expirationDate: { type: Date },
   qrCodeUrl: { type: String },
   pdfUrl: { type: String },
-  secureToken: { type: String }, // For QR code verification
+  secureToken: { type: String, index: true }, // For QR code verification
   entryStatus: { type: String, enum: ['Not Entered', 'Entered', 'Exited', 'Overstayed'], default: 'Not Entered' },
   entryDate: { type: Date },
   exitDate: { type: Date },
@@ -35,5 +35,9 @@ const visaApplicationSchema = new mongoose.Schema({
     location: { type: String }
   }]
 }, { timestamps: true });
+
+// Add composite or nested indexes
+visaApplicationSchema.index({ createdAt: -1 });
+visaApplicationSchema.index({ 'personalDetails.email': 1 });
 
 module.exports = mongoose.model('VisaApplication', visaApplicationSchema);

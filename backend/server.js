@@ -4,6 +4,7 @@ dns.setDefaultResultOrder('ipv4first');
 const cors = require('cors');
 const dotenv = require('dotenv');
 const connectDB = require('./config/db');
+const compression = require('compression');
 
 const path = require('path');
 
@@ -22,6 +23,7 @@ app.use(cors({
 }));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
+app.use(compression());
 
 // Professional Request Logger
 app.use((req, res, next) => {

@@ -3,6 +3,7 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import { AuthContext } from '../context/AuthContext';
 import { IdentificationIcon, CameraIcon, PaperAirplaneIcon, CreditCardIcon } from '@heroicons/react/24/outline';
 import axios from 'axios';
+import CountryAutocomplete from '../components/CountryAutocomplete';
 
 const ApplyVisa = () => {
   const { user } = useContext(AuthContext);
@@ -62,7 +63,7 @@ const ApplyVisa = () => {
               duration: app.visaDuration?.toString() || prev.duration,
               firstName: app.personalDetails?.firstName || prev.firstName,
               lastName: app.personalDetails?.lastName || prev.lastName,
-              passportNumber: app.personalDetails?.passportNumber || prev.passportNumber,
+              passportNumber: app.personalDetails?.passportNumber || app.passportNumber || prev.passportNumber,
               nationality: app.personalDetails?.nationality || prev.nationality,
               passportExpiry: app.personalDetails?.passportExpiry ? new Date(app.personalDetails.passportExpiry).toISOString().split('T')[0] : prev.passportExpiry,
               phone: app.personalDetails?.phone || prev.phone,
@@ -205,6 +206,10 @@ const ApplyVisa = () => {
 
   const handleSubmit = (e) => {
     e.preventDefault();
+    if (step === 6 && editId) {
+      finalizeApplication();
+      return;
+    }
     if (step === 7) {
       if (amountDue > 0) {
         setIsProcessingPayment(true);
@@ -365,7 +370,7 @@ const ApplyVisa = () => {
 
           {/* Form Body */}
           <div className="p-8 sm:p-10 flex-grow">
-            <form onSubmit={step === 7 ? handleSubmit : (e) => { e.preventDefault(); nextStep(); }}>
+            <form onSubmit={handleSubmit}>
               
               {/* Step 1: Detailed Guidance & Requirements */}
               {step === 1 && (
@@ -556,9 +561,7 @@ const ApplyVisa = () => {
                     </div>
                     <div>
                       <label className="block text-sm font-semibold text-gray-700 mb-2 tracking-wide">Nationality</label>
-                      <input 
-                        type="text" 
-                        name="nationality" 
+                      <CountryAutocomplete
                         required 
                         value={formData.nationality} 
                         onChange={handleChange} 
@@ -956,7 +959,7 @@ const ApplyVisa = () => {
                     type="submit" 
                     className="px-8 py-3.5 bg-gradient-to-r from-primary to-[#4338ca] text-white font-bold rounded-xl hover:opacity-90 transition-all shadow-md shadow-primary/30 hover:-translate-y-0.5 text-sm"
                   >
-                    {step === 7 ? 'Pay & Submit Application' : step === 1 ? 'Start Application' : 'Next Step'}
+                    {step === 7 ? 'Pay & Submit Application' : step === 6 && editId ? 'Submit Revision' : step === 1 ? 'Start Application' : 'Next Step'}
                   </button>
                 </div>
               )}

@@ -352,9 +352,9 @@ const ApplicantDashboard = () => {
             <div className="bg-gray-50 px-6 py-4 flex flex-col sm:flex-row gap-3 justify-between items-center border-t border-gray-100">
               <span className="text-[10px] text-gray-400 font-mono">Ref: {selectedVisa._id}</span>
               <div className="flex gap-2">
-                {selectedVisa.pdfUrl && (
+                {selectedVisa.applicationStatus === 'Approved' && (
                   <a 
-                    href={`${import.meta.env.VITE_API_URL || ''}/${selectedVisa.pdfUrl.replace(/\\/g, '/')}`}
+                    href={`${import.meta.env.VITE_API_URL || ''}/${(selectedVisa.pdfUrl || `uploads/pdfs/visa-${selectedVisa._id}.pdf`).replace(/\\/g, '/')}`}
                     target="_blank"
                     rel="noreferrer"
                     className="text-xs px-4 py-2 bg-green-700 text-white font-bold rounded-lg hover:bg-green-800 flex items-center transition-colors"

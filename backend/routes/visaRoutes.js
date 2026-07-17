@@ -14,6 +14,9 @@ router.post('/apply', protect, upload.fields([
 // Fetch current applicant's applications
 router.get('/my-applications', protect, visaController.getMyApplications);
 
+// Fetch stats (Officer view)
+router.get('/stats', protect, officerOnly, visaController.getStats);
+
 // Fetch all applications (Officer view)
 router.get('/all', protect, officerOnly, visaController.getAllApplications);
 

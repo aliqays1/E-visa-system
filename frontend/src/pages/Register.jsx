@@ -3,6 +3,7 @@ import { AuthContext } from '../context/AuthContext';
 import { useNavigate, Link } from 'react-router-dom';
 import { GlobeAltIcon, EyeIcon, EyeSlashIcon, EnvelopeIcon } from '@heroicons/react/24/outline';
 import OtpInput from '../components/OtpInput';
+import CountryAutocomplete from '../components/CountryAutocomplete';
 
 const Register = () => {
   const [fullName, setFullName] = useState('');
@@ -174,8 +175,7 @@ const Register = () => {
                   
                   <div className="space-y-1.5">
                     <label className="block text-xs font-extrabold uppercase tracking-widest text-gray-500 ml-1">Nationality</label>
-                    <input 
-                      type="text" 
+                    <CountryAutocomplete
                       className="w-full px-5 py-3.5 rounded-2xl border border-gray-200 focus:outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 transition-all text-gray-900 bg-white shadow-sm hover:border-gray-300 text-base"
                       placeholder="Citizenship"
                       value={nationality}

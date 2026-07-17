@@ -179,7 +179,10 @@ exports.updateApplication = async (req, res) => {
 // Get current applicant's visa applications
 exports.getMyApplications = async (req, res) => {
   try {
-    const applications = await VisaApplication.find({ applicantId: req.user._id }).sort({ createdAt: -1 });
+    const applications = await VisaApplication.find({ applicantId: req.user._id })
+      .select('-scannedHistory')
+      .sort({ createdAt: -1 })
+      .lean();
     res.json({ success: true, applications });
   } catch (error) {
     console.error('Error fetching applicant visas:', error);
@@ -187,39 +190,86 @@ exports.getMyApplications = async (req, res) => {
   }
 };
 
+// Get stats (Officer view)
+exports.getStats = async (req, res) => {
+  try {
+    const [totalApps, pendingApps, approvedApps, rejectedApps, overstays] = await Promise.all([
+      VisaApplication.countDocuments(),
+      VisaApplication.countDocuments({ applicationStatus: { $in: ['Submitted', 'Pending', 'Under Review', 'Needs Revision'] } }),
+      VisaApplication.countDocuments({ applicationStatus: 'Approved' }),
+      VisaApplication.countDocuments({ applicationStatus: 'Rejected' }),
+      VisaApplication.countDocuments({ overstayAlert: true })
+    ]);
+    res.json({ success: true, stats: { totalApps, pendingApps, approvedApps, rejectedApps, overstays } });
+  } catch (error) {
+    console.error('Error fetching stats:', error);
+    res.status(500).json({ success: false, message: 'Server error fetching stats' });
+  }
+};
+
 // Get all applications (Officer view)
 exports.getAllApplications = async (req, res) => {
   try {
-    const now = new Date();
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 10;
+    const search = req.query.search || '';
+    const paymentStatus = req.query.paymentStatus;
+    const entryStatus = req.query.entryStatus;
+    const overstayAlert = req.query.overstayAlert;
     
-    // Auto-heal existing records: ensure expirationDate is based on entryDate for entered visas
-    const enteredVisas = await VisaApplication.find({ entryStatus: 'Entered' });
-    for (let visa of enteredVisas) {
-      if (visa.entryDate) {
-        const correctExp = new Date(visa.entryDate);
-        correctExp.setDate(correctExp.getDate() + (visa.visaDuration || 30));
-        visa.expirationDate = correctExp;
-        await visa.save();
-      }
+    let query = {};
+    if (search) {
+      const terms = search.trim().split(/\s+/);
+      query.$and = terms.map(term => {
+        const searchRegex = new RegExp(term, 'i');
+        const termQuery = {
+          $or: [
+            { 'personalDetails.firstName': searchRegex },
+            { 'personalDetails.lastName': searchRegex },
+            { 'personalDetails.passportNumber': searchRegex },
+            { 'personalDetails.email': searchRegex },
+            { secureToken: searchRegex }
+          ]
+        };
+        if (term.match(/^[0-9a-fA-F]{24}$/)) {
+          termQuery.$or.push({ _id: term });
+        }
+        return termQuery;
+      });
     }
 
-    // Auto-detect new overstays
-    const overstayedVisas = await VisaApplication.find({
-      entryStatus: 'Entered',
-      expirationDate: { $lt: now },
-      overstayAlert: { $ne: true }
-    });
-
-    for (let visa of overstayedVisas) {
-      visa.overstayAlert = true;
-      visa.entryStatus = 'Overstayed';
-      await visa.save();
+    if (paymentStatus) {
+      query.paymentStatus = paymentStatus;
+    }
+    if (entryStatus) {
+      query.entryStatus = { $in: entryStatus.split(',') };
+    }
+    if (overstayAlert === 'true') {
+      query.overstayAlert = true;
     }
 
-    const applications = await VisaApplication.find()
+    const skip = (page - 1) * limit;
+
+    const applications = await VisaApplication.find(query)
+      .select('-scannedHistory')
       .populate('applicantId', 'fullName email')
-      .sort({ createdAt: -1 });
-    res.json({ success: true, applications });
+      .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(limit)
+      .lean();
+      
+    // Fetch total count for pagination if needed
+    const totalCount = await VisaApplication.countDocuments(query);
+      
+    res.json({ 
+      success: true, 
+      applications,
+      pagination: {
+        total: totalCount,
+        page,
+        pages: Math.ceil(totalCount / limit)
+      }
+    });
   } catch (error) {
     console.error('Error fetching all visas:', error);
     res.status(500).json({ success: false, message: 'Server error fetching all applications' });
@@ -544,44 +594,42 @@ exports.checkOverstays = async (req, res) => {
   try {
     const now = new Date();
     
-    // Heal existing records: ensure expirationDate is based on entryDate for entered visas
-    const enteredVisas = await VisaApplication.find({ entryStatus: 'Entered' });
-    for (let visa of enteredVisas) {
-      if (visa.entryDate) {
-        const correctExp = new Date(visa.entryDate);
-        correctExp.setDate(correctExp.getDate() + (visa.visaDuration || 30));
-        visa.expirationDate = correctExp;
-        await visa.save();
+    // Find them first to get their IDs
+    const overstayedApps = await VisaApplication.find({
+      entryStatus: 'Entered', 
+      expirationDate: { $lt: now }, 
+      overstayAlert: { $ne: true } 
+    }).select('_id');
+
+    const newOverstayIds = overstayedApps.map(app => app._id);
+    
+    if (newOverstayIds.length > 0) {
+      await VisaApplication.updateMany(
+        { _id: { $in: newOverstayIds } },
+        { 
+          $set: { 
+            overstayAlert: true, 
+            entryStatus: 'Overstayed' 
+          } 
+        }
+      );
+
+      if (req.user && req.user.role === 'officer') {
+        await ActivityLog.create({
+          officerId: req.user._id,
+          officerName: req.user.fullName,
+          action: 'Ran Overstay Check',
+          details: `Found ${newOverstayIds.length} new overstays`,
+          ipAddress: req.ip
+        });
       }
-    }
-
-    // Find visas that are Entered, but expirationDate is in the past
-    const overstayedVisas = await VisaApplication.find({
-      entryStatus: 'Entered',
-      expirationDate: { $lt: now },
-      overstayAlert: { $ne: true }
-    });
-
-    for (let visa of overstayedVisas) {
-      visa.overstayAlert = true;
-      visa.entryStatus = 'Overstayed';
-      await visa.save();
-    }
-
-    if (req.user && req.user.role === 'officer') {
-      await ActivityLog.create({
-        officerId: req.user._id,
-        officerName: req.user.fullName,
-        action: 'Ran Overstay Check',
-        details: `Found ${overstayedVisas.length} new overstays`,
-        ipAddress: req.ip
-      });
     }
 
     res.json({ 
       success: true, 
-      message: `Overstay check complete. Found ${overstayedVisas.length} new overstays.`,
-      newOverstays: overstayedVisas
+      message: `Overstay check complete. Found ${newOverstayIds.length} new overstays.`,
+      newOverstaysCount: newOverstayIds.length,
+      newOverstayIds
     });
   } catch (error) {
     console.error('Error checking overstays:', error);
