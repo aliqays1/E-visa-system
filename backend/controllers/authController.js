@@ -151,6 +151,16 @@ exports.loginUser = async (req, res) => {
                          process.env.RENDER === 'true';
 
     if (user && (await bcrypt.compare(password, user.password))) {
+      if (user.role === 'officer') {
+        await ActivityLog.create({
+          officerId: user._id,
+          officerName: user.fullName,
+          action: 'Login',
+          details: 'Officer logged in to the portal',
+          ipAddress: req.ip
+        });
+      }
+
       return res.status(200).json({
         success: true,
         _id: user._id,

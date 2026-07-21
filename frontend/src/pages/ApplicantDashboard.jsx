@@ -67,7 +67,8 @@ const ApplicantDashboard = () => {
         nationality: pendingVisa.nationality,
         passportExpiry: pendingVisa.passportExpiry,
         passportNumber: pendingVisa.passportNumber,
-        email: pendingVisa.email
+        email: pendingVisa.email,
+        phone: pendingVisa.phone
       }));
 
       // Travel Details object

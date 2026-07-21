@@ -66,7 +66,7 @@ const ApplyVisa = () => {
               passportNumber: app.personalDetails?.passportNumber || app.passportNumber || prev.passportNumber,
               nationality: app.personalDetails?.nationality || prev.nationality,
               passportExpiry: app.personalDetails?.passportExpiry ? new Date(app.personalDetails.passportExpiry).toISOString().split('T')[0] : prev.passportExpiry,
-              phone: app.personalDetails?.phone || prev.phone,
+              phone: app.personalDetails?.phone || app.travelDetails?.phone || app.phone || prev.phone,
               email: app.personalDetails?.email || prev.email,
               arrivalDate: app.travelDetails?.arrivalDate ? new Date(app.travelDetails.arrivalDate).toISOString().split('T')[0] : prev.arrivalDate,
               departureDate: app.travelDetails?.departureDate ? new Date(app.travelDetails.departureDate).toISOString().split('T')[0] : prev.departureDate,
@@ -93,9 +93,9 @@ const ApplyVisa = () => {
     { id: 7, name: 'Payment & Submit', desc: 'Pay processing fee securely' },
   ];
 
-  const handleChange = (e) => {
-    setFormData({ ...formData, [e.target.name]: e.target.value });
-  };
+  const handleNext = () => setStep(prev => Math.min(prev + 1, 7));
+  const handleBack = () => setStep(prev => Math.max(prev - 1, 1));
+  const handleChange = (e) => setFormData(prev => ({ ...prev, [e.target.name]: e.target.value }));
 
   const handleFileChange = (e, fieldName) => {
     if (e.target.files && e.target.files[0]) {
@@ -130,25 +130,25 @@ const ApplyVisa = () => {
     }
   };
 
+  const dataURItoBlob = (dataURI) => {
+    if (!dataURI) return null;
+    try {
+      if (!dataURI.startsWith('data:')) return null;
+      const splitDataURI = dataURI.split(',');
+      const byteString = splitDataURI[0].indexOf('base64') >= 0 ? atob(splitDataURI[1]) : decodeURI(splitDataURI[1]);
+      const mimeString = splitDataURI[0].split(':')[1].split(';')[0];
+      const ia = new Uint8Array(byteString.length);
+      for (let i = 0; i < byteString.length; i++) {
+        ia[i] = byteString.charCodeAt(i);
+      }
+      return new Blob([ia], { type: mimeString });
+    } catch (e) {
+      return null;
+    }
+  };
+
   const finalizeApplication = async () => {
     if (editId) {
-      const dataURItoBlob = (dataURI) => {
-        if (!dataURI) return null;
-        try {
-          if (!dataURI.startsWith('data:')) return null;
-          const splitDataURI = dataURI.split(',');
-          const byteString = splitDataURI[0].indexOf('base64') >= 0 ? atob(splitDataURI[1]) : decodeURI(splitDataURI[1]);
-          const mimeString = splitDataURI[0].split(':')[1].split(';')[0];
-          const ia = new Uint8Array(byteString.length);
-          for (let i = 0; i < byteString.length; i++) {
-            ia[i] = byteString.charCodeAt(i);
-          }
-          return new Blob([ia], { type: mimeString });
-        } catch (e) {
-          return null;
-        }
-      };
-
       const formDataToSend = new FormData();
       formDataToSend.append('visaType', formData.visaType);
       formDataToSend.append('purposeOfTravel', formData.purpose);
@@ -165,7 +165,8 @@ const ApplyVisa = () => {
       formDataToSend.append('travelDetails', JSON.stringify({
         arrivalDate: formData.arrivalDate,
         departureDate: formData.departureDate,
-        hostAddress: formData.hostAddress
+        hostAddress: formData.hostAddress,
+        phone: formData.phone
       }));
 
       const passportBlob = dataURItoBlob(formData.passportScanData);
@@ -838,6 +839,9 @@ const ApplyVisa = () => {
                           value={formData.cardNumber}
                           onChange={handleChange}
                           name="cardNumber"
+                          autoComplete="off"
+                          data-lpignore="true"
+                          data-1p-ignore="true"
                           className="w-full px-4 py-3.5 rounded-xl border border-gray-200/80 bg-gray-50/50 hover:bg-white focus:bg-white focus:ring-4 focus:ring-primary/15 focus:border-primary shadow-sm transition-all duration-300 text-gray-800 font-mono tracking-widest"
                         />
                       </div>
@@ -851,6 +855,9 @@ const ApplyVisa = () => {
                             value={formData.cardExpiry}
                             onChange={handleChange}
                             name="cardExpiry"
+                            autoComplete="off"
+                            data-lpignore="true"
+                            data-1p-ignore="true"
                             className="w-full px-4 py-3.5 rounded-xl border border-gray-200/80 bg-gray-50/50 hover:bg-white focus:bg-white focus:ring-4 focus:ring-primary/15 focus:border-primary shadow-sm transition-all duration-300 text-gray-800 font-mono"
                           />
                         </div>
@@ -863,6 +870,9 @@ const ApplyVisa = () => {
                             value={formData.cardCvv}
                             onChange={handleChange}
                             name="cardCvv"
+                            autoComplete="off"
+                            data-lpignore="true"
+                            data-1p-ignore="true"
                             className="w-full px-4 py-3.5 rounded-xl border border-gray-200/80 bg-gray-50/50 hover:bg-white focus:bg-white focus:ring-4 focus:ring-primary/15 focus:border-primary shadow-sm transition-all duration-300 text-gray-800 font-mono"
                           />
                         </div>

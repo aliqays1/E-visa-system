@@ -14,7 +14,11 @@ import {
   ExclamationTriangleIcon,
   Bars3Icon,
   ChevronLeftIcon,
-  ChevronRightIcon
+  ChevronRightIcon,
+  DocumentTextIcon,
+  CameraIcon,
+  BuildingLibraryIcon,
+  ArrowDownTrayIcon
 } from '@heroicons/react/24/outline';
 
 const OfficerDashboard = () => {
@@ -57,19 +61,15 @@ const OfficerDashboard = () => {
     }
   }, [token]);
 
-  const fetchApplications = React.useCallback(async (tabOverride, signal) => {
+  const fetchApplications = React.useCallback(async (signal) => {
     if (!token) {
       setLoading(false);
       return;
     }
-    setLoading(true);
+    // Only show full loading spinner on initial fetch when empty
+    setLoading(prev => applications.length === 0);
     try {
-      let url = `/api/visa/all?page=1&limit=1000&search=${encodeURIComponent(searchQuery)}`;
-      const currentTab = typeof tabOverride === 'string' ? tabOverride : activeTab;
-      
-      if (currentTab === 'payments') url += '&paymentStatus=Pending';
-      else if (currentTab === 'border') url += '&entryStatus=Entered,Exited';
-      else if (currentTab === 'alerts') url += '&overstayAlert=true';
+      const url = `/api/visa/all?page=1&limit=1000`;
 
       const res = await axios.get(url, {
         headers: { 'Authorization': `Bearer ${token}` },
@@ -89,12 +89,10 @@ const OfficerDashboard = () => {
     } finally {
       setLoading(false);
     }
-  }, [token, page, searchQuery, activeTab]);
+  }, [token, applications.length]);
 
   const handleTabChange = (tab) => {
     if (activeTab === tab) return;
-    setApplications([]); // Synchronously clear applications to prevent data leaks between tabs
-    setPage(1);
     setActiveTab(tab);
   };
 
@@ -104,14 +102,11 @@ const OfficerDashboard = () => {
 
   useEffect(() => {
     const controller = new AbortController();
-    const timeout = setTimeout(() => {
-      fetchApplications(undefined, controller.signal);
-    }, 300);
+    fetchApplications(controller.signal);
     return () => {
-      clearTimeout(timeout);
       controller.abort();
     };
-  }, [fetchApplications, page, searchQuery]);
+  }, [fetchApplications]);
 
   const handleUpdateStatus = async (id, newStatus) => {
     try {
@@ -132,8 +127,8 @@ const OfficerDashboard = () => {
 
       if (res.data.success) {
         alert(`Application status successfully updated to ${newStatus}!`);
-        // Optimistic update
-        setApplications(prev => prev.map(app => app._id === id ? { ...app, applicationStatus: newStatus } : app));
+        const updatedApp = res.data.application || { ...selectedApplication, applicationStatus: newStatus };
+        setApplications(prev => prev.map(app => app._id === id ? updatedApp : app));
         setSelectedApplication(null);
         setRejectionReason('');
         fetchStats();
@@ -255,7 +250,33 @@ const OfficerDashboard = () => {
 
   const { totalApps, pendingApps, approvedApps, rejectedApps, overstays } = stats;
 
-  const filteredApps = applications;
+  // Search filter across applications
+  const searchedApps = applications.filter(app => {
+    if (!searchQuery.trim()) return true;
+    const query = searchQuery.toLowerCase().trim();
+    const firstName = app.personalDetails?.firstName || '';
+    const lastName = app.personalDetails?.lastName || '';
+    const fullName = `${firstName} ${lastName}`.toLowerCase();
+    const passport = (app.personalDetails?.passportNumber || app.passportNumber || '').toLowerCase();
+    const id = (app._id || '').toLowerCase();
+    const token = (app.secureToken || '').toLowerCase();
+    const visaType = (app.visaType || '').toLowerCase();
+    const status = (app.applicationStatus || '').toLowerCase();
+    return (
+      fullName.includes(query) ||
+      passport.includes(query) ||
+      id.includes(query) ||
+      token.includes(query) ||
+      visaType.includes(query) ||
+      status.includes(query)
+    );
+  });
+
+  // Tab specific filters
+  const reviewApps = searchedApps;
+  const paymentApps = searchedApps.filter(app => app.paymentStatus === 'Pending' || app.paymentStatus === 'Unverified');
+  const borderApps = searchedApps.filter(app => app.applicationStatus === 'Approved' || ['Entered', 'Exited', 'Overstayed'].includes(app.entryStatus));
+  const alertApps = searchedApps.filter(app => app.overstayAlert === true || app.entryStatus === 'Overstayed');
 
   return (
     <div className="flex h-screen bg-[#F4F7FA] font-sans text-gray-800 absolute inset-0 z-50 overflow-hidden">
@@ -377,10 +398,10 @@ const OfficerDashboard = () => {
                         {loading && (
                           <tr><td colSpan="5" className="px-8 py-10 text-center"><div className="inline-flex items-center justify-center space-x-2 text-gray-400"><svg className="animate-spin h-5 w-5 text-blue-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg><span className="font-medium animate-pulse">Loading records...</span></div></td></tr>
                         )}
-                        {!loading && filteredApps.length === 0 && (
+                        {!loading && reviewApps.length === 0 && (
                           <tr><td colSpan="5" className="px-8 py-10 text-center text-gray-500 font-medium">No records found.</td></tr>
                         )}
-                        {filteredApps.map((app) => (
+                        {reviewApps.map((app) => (
                           <tr key={app._id} className="hover:bg-blue-50/40 transition-all duration-200 group">
                             <td className="px-8 py-5">
                               <div className="font-bold text-gray-900 text-base group-hover:text-primary transition-colors capitalize">{app.personalDetails?.firstName} {app.personalDetails?.lastName}</div>
@@ -428,17 +449,21 @@ const OfficerDashboard = () => {
                     {loading && (
                       <tr><td colSpan="4" className="px-6 py-10 text-center"><div className="inline-flex items-center justify-center space-x-2 text-gray-400"><svg className="animate-spin h-5 w-5 text-blue-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg><span className="font-medium animate-pulse">Loading records...</span></div></td></tr>
                     )}
-                    {!loading && filteredApps.length === 0 && (
-                      <tr><td colSpan="4" className="px-6 py-10 text-center text-gray-500 font-medium">No records found.</td></tr>
+                    {!loading && paymentApps.length === 0 && (
+                      <tr><td colSpan="4" className="px-6 py-10 text-center text-gray-500 font-medium">No pending payment verifications found.</td></tr>
                     )}
-                    {filteredApps.map((app) => (
+                    {paymentApps.map((app) => (
                       <tr key={app._id} className="hover:bg-gray-50/50 transition-colors">
                         <td className="px-6 py-4 font-mono text-xs text-gray-500">{app._id}</td>
                         <td className="px-6 py-4">
                            <div className="font-bold text-gray-900 text-base capitalize">{app.personalDetails?.firstName} {app.personalDetails?.lastName}</div>
                         </td>
                         <td className="px-6 py-4">
-                          <span className="px-3 py-1 inline-flex text-[11px] leading-5 font-bold uppercase tracking-wider rounded-md bg-yellow-50 text-yellow-700">Pending</span>
+                          <span className={`px-3 py-1 inline-flex text-[11px] leading-5 font-bold uppercase tracking-wider rounded-md ${
+                            app.paymentStatus === 'Completed' ? 'bg-green-50 text-green-700 border border-green-200' :
+                            app.paymentStatus === 'Failed' ? 'bg-red-50 text-red-700 border border-red-200' :
+                            'bg-yellow-50 text-yellow-700 border border-yellow-200'
+                          }`}>{app.paymentStatus || 'Pending'}</span>
                         </td>
                         <td className="px-6 py-4 text-right space-x-2">
                           <button onClick={() => handleVerifyPayment(app._id, 'Completed')} className="text-white bg-green-600 hover:bg-green-700 px-5 py-2 rounded-xl transition-all duration-300 font-bold shadow-md hover:shadow-lg transform hover:-translate-y-0.5">Mark Paid</button>
@@ -490,22 +515,49 @@ const OfficerDashboard = () => {
                       {loading && (
                         <tr><td colSpan="5" className="px-6 py-10 text-center"><div className="inline-flex items-center justify-center space-x-2 text-gray-400"><svg className="animate-spin h-5 w-5 text-blue-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg><span className="font-medium animate-pulse">Loading records...</span></div></td></tr>
                       )}
-                      {!loading && filteredApps.length === 0 && (
-                        <tr><td colSpan="5" className="px-6 py-10 text-center text-gray-500 font-medium">No records found.</td></tr>
+                      {!loading && borderApps.length === 0 && (
+                        <tr><td colSpan="5" className="px-6 py-10 text-center text-gray-500 font-medium">No border records found.</td></tr>
                       )}
-                      {filteredApps.map((app) => (
-                        <tr key={app._id} className="hover:bg-gray-50/50 transition-colors">
-                          <td className="px-6 py-4">
-                             <div className="font-bold text-gray-900 text-base capitalize">{app.personalDetails?.firstName} {app.personalDetails?.lastName}</div>
-                          </td>
-                          <td className="px-6 py-4 text-gray-500 font-mono font-bold uppercase">{app.personalDetails?.passportNumber}</td>
-                          <td className="px-6 py-4">
-                            <span className={`px-3 py-1 inline-flex text-[11px] leading-5 font-bold uppercase tracking-wider rounded-md border ${app.entryStatus === 'Entered' ? 'bg-blue-50 text-blue-700 border-blue-200' : 'bg-slate-50 text-slate-700 border-slate-200'}`}>{app.entryStatus}</span>
-                          </td>
-                          <td className="px-6 py-4 text-gray-500">{app.entryDate ? new Date(app.entryDate).toLocaleString() : '-'}</td>
-                          <td className="px-6 py-4 text-gray-500">{app.exitDate ? new Date(app.exitDate).toLocaleString() : '-'}</td>
-                        </tr>
-                      ))}
+                      {borderApps.map((app) => {
+                        const isOverstayed = app.entryStatus === 'Overstayed' || app.overstayAlert;
+                        return (
+                          <tr 
+                            key={app._id} 
+                            className={`transition-colors ${
+                              isOverstayed 
+                                ? 'bg-red-50/80 border-l-4 border-l-red-600 hover:bg-red-100/80 shadow-sm' 
+                                : 'hover:bg-gray-50/50'
+                            }`}
+                          >
+                            <td className="px-6 py-4">
+                              <div className="font-bold text-gray-900 text-base capitalize flex items-center gap-2">
+                                {app.personalDetails?.firstName} {app.personalDetails?.lastName}
+                                {isOverstayed && (
+                                  <span className="px-2 py-0.5 text-[10px] bg-red-600 text-white rounded-md font-extrabold uppercase tracking-wider shadow-sm shadow-red-500/30">
+                                    OVERSTAY
+                                  </span>
+                                )}
+                              </div>
+                            </td>
+                            <td className="px-6 py-4 text-gray-500 font-mono font-bold uppercase">{app.personalDetails?.passportNumber}</td>
+                            <td className="px-6 py-4">
+                              <span className={`px-3 py-1.5 inline-flex text-[11px] leading-5 font-extrabold uppercase tracking-wider rounded-lg border ${
+                                app.entryStatus === 'Overstayed'
+                                  ? 'bg-red-600 text-white border-red-700 shadow-md shadow-red-500/40 ring-2 ring-red-300 animate-pulse'
+                                  : app.entryStatus === 'Entered'
+                                  ? 'bg-blue-50 text-blue-700 border-blue-200 font-bold'
+                                  : app.entryStatus === 'Exited'
+                                  ? 'bg-emerald-50 text-emerald-700 border-emerald-200 font-bold'
+                                  : 'bg-slate-50 text-slate-700 border-slate-200 font-bold'
+                              }`}>
+                                {app.entryStatus || 'Not Entered'}
+                              </span>
+                            </td>
+                            <td className="px-6 py-4 text-gray-500">{app.entryDate ? new Date(app.entryDate).toLocaleString() : '-'}</td>
+                            <td className="px-6 py-4 text-gray-500">{app.exitDate ? new Date(app.exitDate).toLocaleString() : '-'}</td>
+                          </tr>
+                        );
+                      })}
                     </tbody>
                   </table>
                 </div>
@@ -534,21 +586,21 @@ const OfficerDashboard = () => {
                     {loading && (
                       <tr><td colSpan="5" className="px-6 py-10 text-center"><div className="inline-flex items-center justify-center space-x-2 text-red-400"><svg className="animate-spin h-5 w-5 text-red-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg><span className="font-medium animate-pulse">Loading alerts...</span></div></td></tr>
                     )}
-                    {filteredApps.map((app) => (
+                    {alertApps.map((app) => (
                       <tr key={app._id} className={`transition-colors ${newlyDetectedOverstays.includes(app._id) ? 'bg-red-100/80 hover:bg-red-200 border-l-4 border-red-500 animate-pulse' : 'hover:bg-red-50/30'}`}>
                         <td className="px-6 py-4 text-gray-800 font-bold">
                           {app.personalDetails?.firstName} {app.personalDetails?.lastName}
                           {newlyDetectedOverstays.includes(app._id) && <span className="ml-3 px-2 py-0.5 text-[10px] bg-red-600 text-white rounded-full font-bold uppercase tracking-widest">NEW</span>}
                         </td>
-                        <td className="px-6 py-4 text-gray-600">{app.personalDetails?.passportNumber}</td>
-                        <td className="px-6 py-4 text-gray-600">{new Date(app.entryDate).toLocaleDateString()}</td>
-                        <td className="px-6 py-4 text-red-600 font-bold">{new Date(app.expirationDate).toLocaleDateString()}</td>
+                        <td className="px-6 py-4 text-gray-600">{app.personalDetails?.passportNumber || app.passportNumber || 'N/A'}</td>
+                        <td className="px-6 py-4 text-gray-600">{app.entryDate ? new Date(app.entryDate).toLocaleDateString() : 'N/A'}</td>
+                        <td className="px-6 py-4 text-red-600 font-bold">{app.expirationDate ? new Date(app.expirationDate).toLocaleDateString() : 'N/A'}</td>
                         <td className="px-6 py-4 text-right">
                           <button onClick={() => setSelectedApplication(app)} className="text-red-700 bg-red-100 px-4 py-2 rounded-lg font-bold hover:bg-red-200">Investigate</button>
                         </td>
                       </tr>
                     ))}
-                    {!loading && filteredApps.length === 0 && (
+                    {!loading && alertApps.length === 0 && (
                       <tr><td colSpan="5" className="text-center py-10 text-gray-500">No active alerts. System is clear.</td></tr>
                     )}
                   </tbody>
@@ -577,38 +629,95 @@ const OfficerDashboard = () => {
             <div className="p-6 space-y-6 overflow-y-auto flex-1">
               <div>
                 <h4 className="text-xs font-bold uppercase tracking-wider text-gray-400 mb-3 border-b border-gray-100 pb-1">Personal Details</h4>
-                <div className="grid grid-cols-2 gap-4 text-sm">
-                  <div><span className="text-gray-500 text-xs block">Full Name</span><span className="font-semibold text-gray-800">{selectedApplication.personalDetails?.firstName} {selectedApplication.personalDetails?.lastName}</span></div>
-                  <div><span className="text-gray-500 text-xs block">Passport Number</span><span className="font-mono font-semibold text-gray-800">{selectedApplication.personalDetails?.passportNumber || selectedApplication.passportNumber || 'N/A'}</span></div>
-                  <div><span className="text-gray-500 text-xs block">Nationality</span><span className="font-semibold text-gray-800">{selectedApplication.personalDetails?.nationality || 'N/A'}</span></div>
-                  <div><span className="text-gray-500 text-xs block">Email Address</span><span className="font-semibold text-gray-800">{selectedApplication.personalDetails?.email || 'N/A'}</span></div>
-                  <div><span className="text-gray-500 text-xs block">Passport Expiry Date</span><span className="font-semibold text-gray-800">{selectedApplication.personalDetails?.passportExpiry ? new Date(selectedApplication.personalDetails.passportExpiry).toLocaleDateString() : 'N/A'}</span></div>
-                  <div><span className="text-gray-500 text-xs block">Purpose of Travel</span><span className="font-semibold text-gray-800">{selectedApplication.purposeOfTravel || 'N/A'}</span></div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm">
+                  <div className="bg-slate-50/80 p-3 rounded-xl border border-slate-200/80 shadow-sm hover:shadow-md hover:border-blue-200/60 transition-all">
+                    <span className="text-gray-400 text-[10px] font-bold uppercase tracking-wider block mb-1">Full Name</span>
+                    <span className="font-bold text-slate-800 text-sm capitalize">{selectedApplication.personalDetails?.firstName} {selectedApplication.personalDetails?.lastName}</span>
+                  </div>
+                  <div className="bg-slate-50/80 p-3 rounded-xl border border-slate-200/80 shadow-sm hover:shadow-md hover:border-blue-200/60 transition-all">
+                    <span className="text-gray-400 text-[10px] font-bold uppercase tracking-wider block mb-1">Passport Number</span>
+                    <span className="font-mono font-bold text-slate-800 text-sm uppercase">{selectedApplication.personalDetails?.passportNumber || selectedApplication.passportNumber || 'N/A'}</span>
+                  </div>
+                  <div className="bg-slate-50/80 p-3 rounded-xl border border-slate-200/80 shadow-sm hover:shadow-md hover:border-blue-200/60 transition-all">
+                    <span className="text-gray-400 text-[10px] font-bold uppercase tracking-wider block mb-1">Nationality</span>
+                    <span className="font-semibold text-slate-800 text-sm capitalize">{selectedApplication.personalDetails?.nationality || 'N/A'}</span>
+                  </div>
+                  <div className="bg-slate-50/80 p-3 rounded-xl border border-slate-200/80 shadow-sm hover:shadow-md hover:border-blue-200/60 transition-all">
+                    <span className="text-gray-400 text-[10px] font-bold uppercase tracking-wider block mb-1">Email Address</span>
+                    <span className="font-semibold text-slate-800 text-sm break-all">{selectedApplication.personalDetails?.email || 'N/A'}</span>
+                  </div>
+                  <div className="bg-slate-50/80 p-3 rounded-xl border border-slate-200/80 shadow-sm hover:shadow-md hover:border-blue-200/60 transition-all">
+                    <span className="text-gray-400 text-[10px] font-bold uppercase tracking-wider block mb-1">Passport Expiry Date</span>
+                    <span className="font-semibold text-slate-800 text-sm">{selectedApplication.personalDetails?.passportExpiry ? new Date(selectedApplication.personalDetails.passportExpiry).toLocaleDateString() : 'N/A'}</span>
+                  </div>
+                  <div className="bg-slate-50/80 p-3 rounded-xl border border-slate-200/80 shadow-sm hover:shadow-md hover:border-blue-200/60 transition-all">
+                    <span className="text-gray-400 text-[10px] font-bold uppercase tracking-wider block mb-1">Purpose of Travel</span>
+                    <span className="font-semibold text-slate-800 text-sm capitalize">{selectedApplication.purposeOfTravel || 'N/A'}</span>
+                  </div>
                 </div>
               </div>
               <div>
                 <h4 className="text-xs font-bold uppercase tracking-wider text-gray-400 mb-3 border-b border-gray-100 pb-1">Travel Details</h4>
-                <div className="grid grid-cols-2 gap-4 text-sm">
-                  <div className="col-span-2"><span className="text-gray-500 text-xs block">Lodging / Host Address in Somalia</span><span className="font-semibold text-gray-800">{selectedApplication.travelDetails?.hostAddress || 'N/A'}</span></div>
-                  <div><span className="text-gray-500 text-xs block">Expected Arrival Date</span><span className="font-semibold text-gray-800">{selectedApplication.travelDetails?.arrivalDate ? new Date(selectedApplication.travelDetails.arrivalDate).toLocaleDateString() : 'N/A'}</span></div>
-                  <div><span className="text-gray-500 text-xs block">Expected Departure Date</span><span className="font-semibold text-gray-800">{selectedApplication.travelDetails?.departureDate ? new Date(selectedApplication.travelDetails.departureDate).toLocaleDateString() : 'N/A'}</span></div>
-                  <div><span className="text-gray-500 text-xs block">Duration (Days)</span><span className="font-semibold text-gray-800">{selectedApplication.visaDuration || 'N/A'}</span></div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm">
+                  <div className="sm:col-span-2 bg-slate-50/80 p-3 rounded-xl border border-slate-200/80 shadow-sm hover:shadow-md hover:border-blue-200/60 transition-all">
+                    <span className="text-gray-400 text-[10px] font-bold uppercase tracking-wider block mb-1">Lodging / Host Address in Somalia</span>
+                    <span className="font-semibold text-slate-800 text-sm">{selectedApplication.travelDetails?.hostAddress || 'N/A'}</span>
+                  </div>
+                  <div className="bg-slate-50/80 p-3 rounded-xl border border-slate-200/80 shadow-sm hover:shadow-md hover:border-blue-200/60 transition-all">
+                    <span className="text-gray-400 text-[10px] font-bold uppercase tracking-wider block mb-1">Expected Arrival Date</span>
+                    <span className="font-semibold text-slate-800 text-sm">{selectedApplication.travelDetails?.arrivalDate ? new Date(selectedApplication.travelDetails.arrivalDate).toLocaleDateString() : 'N/A'}</span>
+                  </div>
+                  <div className="bg-slate-50/80 p-3 rounded-xl border border-slate-200/80 shadow-sm hover:shadow-md hover:border-blue-200/60 transition-all">
+                    <span className="text-gray-400 text-[10px] font-bold uppercase tracking-wider block mb-1">Expected Departure Date</span>
+                    <span className="font-semibold text-slate-800 text-sm">{selectedApplication.travelDetails?.departureDate ? new Date(selectedApplication.travelDetails.departureDate).toLocaleDateString() : 'N/A'}</span>
+                  </div>
+                  <div className="sm:col-span-2 bg-slate-50/80 p-3 rounded-xl border border-slate-200/80 shadow-sm hover:shadow-md hover:border-blue-200/60 transition-all">
+                    <span className="text-gray-400 text-[10px] font-bold uppercase tracking-wider block mb-1">Duration (Days)</span>
+                    <span className="font-bold text-slate-800 text-sm">{selectedApplication.visaDuration || 'N/A'} Days</span>
+                  </div>
                 </div>
               </div>
               <div>
                 <h4 className="text-xs font-bold uppercase tracking-wider text-gray-400 mb-3 border-b border-gray-100 pb-1">Documents & Artifacts</h4>
-                <div className="grid grid-cols-3 gap-4 text-xs">
-                  <div>
-                    <span className="text-gray-500 block mb-1">Passport Scan</span>
-                    {selectedApplication.passportDocument ? <a href={`${import.meta.env.VITE_API_URL || ''}/uploads/${selectedApplication.passportDocument.split(/[\\/]/).pop()}`} target="_blank" rel="noreferrer" className="text-blue-600 hover:underline font-bold">📄 View Passport</a> : 'N/A'}
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs">
+                  <div className="bg-slate-50/80 p-3.5 rounded-xl border border-slate-200/80 shadow-sm hover:shadow-md hover:border-blue-200 transition-all flex flex-col justify-between">
+                    <span className="text-gray-500 text-[11px] font-semibold block mb-2">Passport Scan</span>
+                    {selectedApplication.passportDocument ? (
+                      <a 
+                        href={`${import.meta.env.VITE_API_URL || ''}/uploads/${selectedApplication.passportDocument.split(/[\\/]/).pop()}`} 
+                        target="_blank" 
+                        rel="noreferrer" 
+                        className="inline-flex items-center justify-center gap-1.5 text-blue-600 hover:text-blue-800 font-bold bg-blue-50/80 hover:bg-blue-100/80 px-3 py-1.5 rounded-lg border border-blue-100 transition-colors w-full"
+                      >
+                        <DocumentTextIcon className="w-4 h-4 text-blue-600" /> View Passport
+                      </a>
+                    ) : <span className="text-gray-400 font-medium">N/A</span>}
                   </div>
-                  <div>
-                    <span className="text-gray-500 block mb-1">Applicant Photo</span>
-                    {selectedApplication.supportingDocuments && selectedApplication.supportingDocuments[0] ? <a href={`${import.meta.env.VITE_API_URL || ''}/uploads/${selectedApplication.supportingDocuments[0].split(/[\\/]/).pop()}`} target="_blank" rel="noreferrer" className="text-blue-600 hover:underline font-bold">📷 View Photo</a> : 'N/A'}
+                  <div className="bg-slate-50/80 p-3.5 rounded-xl border border-slate-200/80 shadow-sm hover:shadow-md hover:border-blue-200 transition-all flex flex-col justify-between">
+                    <span className="text-gray-500 text-[11px] font-semibold block mb-2">Applicant Photo</span>
+                    {selectedApplication.supportingDocuments && selectedApplication.supportingDocuments[0] ? (
+                      <a 
+                        href={`${import.meta.env.VITE_API_URL || ''}/uploads/${selectedApplication.supportingDocuments[0].split(/[\\/]/).pop()}`} 
+                        target="_blank" 
+                        rel="noreferrer" 
+                        className="inline-flex items-center justify-center gap-1.5 text-blue-600 hover:text-blue-800 font-bold bg-blue-50/80 hover:bg-blue-100/80 px-3 py-1.5 rounded-lg border border-blue-100 transition-colors w-full"
+                      >
+                        <CameraIcon className="w-4 h-4 text-blue-600" /> View Photo
+                      </a>
+                    ) : <span className="text-gray-400 font-medium">N/A</span>}
                   </div>
-                  <div>
-                    <span className="text-gray-500 block mb-1">Bank Statement</span>
-                    {selectedApplication.supportingDocuments && selectedApplication.supportingDocuments[1] ? <a href={`${import.meta.env.VITE_API_URL || ''}/uploads/${selectedApplication.supportingDocuments[1].split(/[\\/]/).pop()}`} target="_blank" rel="noreferrer" className="text-blue-600 hover:underline font-bold">🏦 View Statement</a> : 'N/A'}
+                  <div className="bg-slate-50/80 p-3.5 rounded-xl border border-slate-200/80 shadow-sm hover:shadow-md hover:border-blue-200 transition-all flex flex-col justify-between">
+                    <span className="text-gray-500 text-[11px] font-semibold block mb-2">Bank Statement</span>
+                    {selectedApplication.supportingDocuments && selectedApplication.supportingDocuments[1] ? (
+                      <a 
+                        href={`${import.meta.env.VITE_API_URL || ''}/uploads/${selectedApplication.supportingDocuments[1].split(/[\\/]/).pop()}`} 
+                        target="_blank" 
+                        rel="noreferrer" 
+                        className="inline-flex items-center justify-center gap-1.5 text-blue-600 hover:text-blue-800 font-bold bg-blue-50/80 hover:bg-blue-100/80 px-3 py-1.5 rounded-lg border border-blue-100 transition-colors w-full"
+                      >
+                        <BuildingLibraryIcon className="w-4 h-4 text-blue-600" /> View Statement
+                      </a>
+                    ) : <span className="text-gray-400 font-medium">N/A</span>}
                   </div>
                 </div>
               </div>
@@ -616,33 +725,69 @@ const OfficerDashboard = () => {
               {/* Payment Info */}
               <div>
                 <h4 className="text-xs font-bold uppercase tracking-wider text-gray-400 mb-3 border-b border-gray-100 pb-1">Payment Verification</h4>
-                <div className="grid grid-cols-2 gap-4 text-sm">
-                  <div><span className="text-gray-500 text-xs block">Payment Status</span><span className="font-bold text-gray-800">{selectedApplication.paymentStatus}</span></div>
-                  <div><span className="text-gray-500 text-xs block">Transaction Reference</span><span className="font-mono font-semibold text-gray-800">{selectedApplication.paymentDetails?.transactionId || 'N/A'}</span></div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm">
+                  <div className="bg-slate-50/80 p-3 rounded-xl border border-slate-200/80 shadow-sm hover:shadow-md hover:border-blue-200/60 transition-all">
+                    <span className="text-gray-400 text-[10px] font-bold uppercase tracking-wider block mb-1">Payment Status</span>
+                    <span className="font-extrabold text-emerald-600 text-sm uppercase">{selectedApplication.paymentStatus}</span>
+                  </div>
+                  <div className="bg-slate-50/80 p-3 rounded-xl border border-slate-200/80 shadow-sm hover:shadow-md hover:border-blue-200/60 transition-all">
+                    <span className="text-gray-400 text-[10px] font-bold uppercase tracking-wider block mb-1">Transaction Reference</span>
+                    <span className="font-mono font-bold text-slate-800 text-sm">{selectedApplication.paymentDetails?.transactionId || 'N/A'}</span>
+                  </div>
                 </div>
               </div>
 
               {selectedApplication.qrCodeUrl && (
                 <div>
                   <h4 className="text-xs font-bold uppercase tracking-wider text-gray-400 mb-3 border-b border-gray-100 pb-1">Generated Visa Assets</h4>
-                  <div className="flex space-x-4 items-center">
-                     <img src={selectedApplication.qrCodeUrl} alt="Visa QR" className="w-24 h-24 border border-gray-200 rounded-lg" />
-                     <div className="text-xs text-gray-500">
-                        <p><strong>Secure Token:</strong> <span className="font-mono">{selectedApplication.secureToken}</span></p>
-                        <p><strong>Expiration:</strong> {new Date(selectedApplication.expirationDate).toLocaleDateString()}</p>
-                     </div>
+                  <div className="bg-gradient-to-br from-slate-50 to-blue-50/50 border border-blue-100 rounded-2xl p-4 shadow-lg shadow-blue-950/10 hover:shadow-xl transition-all duration-300">
+                    <div className="flex flex-col sm:flex-row items-center gap-4">
+                      <div className="bg-white p-2.5 rounded-xl shadow-sm border border-gray-100 flex-shrink-0">
+                        <img src={selectedApplication.qrCodeUrl} alt="Visa Verification QR Code" className="w-24 h-24 rounded-lg object-contain" />
+                      </div>
+                      <div className="flex-1 space-y-2 text-xs w-full">
+                        <div className="flex items-center justify-between">
+                          <span className="px-2.5 py-0.5 bg-emerald-100 text-emerald-800 font-semibold rounded-md text-[10px] uppercase tracking-wider">
+                            Official Digital Visa
+                          </span>
+                          {selectedApplication.applicationStatus === 'Approved' && (
+                            <a
+                              href={`${import.meta.env.VITE_API_URL || ''}/${(selectedApplication.pdfUrl || `uploads/pdfs/visa-${selectedApplication._id}.pdf`).replace(/\\/g, '/')}`}
+                              target="_blank"
+                              rel="noreferrer"
+                              className="text-xs font-bold text-blue-600 hover:text-blue-800 hover:underline flex items-center gap-1"
+                            >
+                              <ArrowDownTrayIcon className="w-4 h-4 text-blue-600 inline" /> Download PDF
+                            </a>
+                          )}
+                        </div>
+                        <div className="bg-white/90 p-2.5 rounded-xl border border-gray-200/80 shadow-inner">
+                          <span className="text-gray-400 font-bold uppercase text-[10px] block mb-0.5">Secure Token</span>
+                          <span className="font-mono font-bold text-slate-800 text-xs break-all select-all">
+                            {selectedApplication.secureToken}
+                          </span>
+                        </div>
+                        <div className="flex justify-between items-center text-xs text-gray-600 pt-0.5">
+                          <span><strong>Expiration Date:</strong> {selectedApplication.expirationDate ? new Date(selectedApplication.expirationDate).toLocaleDateString() : 'N/A'}</span>
+                        </div>
+                      </div>
+                    </div>
                   </div>
                 </div>
               )}
 
               {['Submitted', 'Pending', 'Under Review', 'Needs Revision'].includes(selectedApplication.applicationStatus) && (
-                <div className="border-t border-gray-100 pt-6 space-y-4 bg-gray-50 p-4 rounded-xl">
-                  <div className="grid grid-cols-1 gap-4">
-                    <div>
-                      <label className="block text-xs font-bold uppercase tracking-wider text-gray-400 mb-2">Officer Comments</label>
-                      <input type="text" placeholder="Required for reject/revision..." value={rejectionReason} onChange={(e) => setRejectionReason(e.target.value)} className="w-full px-3 py-2 bg-white border border-gray-200 rounded-lg text-sm text-gray-800" />
-                    </div>
-                  </div>
+                <div className="bg-gradient-to-br from-slate-50 to-gray-100/70 border border-slate-200/80 rounded-2xl p-5 shadow-lg shadow-slate-900/10 hover:shadow-xl transition-all duration-300">
+                  <label className="block text-xs font-bold uppercase tracking-wider text-slate-500 mb-2">
+                    Officer Comments
+                  </label>
+                  <input
+                    type="text"
+                    placeholder="Required for reject/revision..."
+                    value={rejectionReason}
+                    onChange={(e) => setRejectionReason(e.target.value)}
+                    className="w-full px-4 py-3 bg-white border border-slate-200 rounded-xl text-sm text-slate-800 placeholder-slate-400 shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all"
+                  />
                 </div>
               )}
             </div>
