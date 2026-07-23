@@ -150,7 +150,11 @@ exports.loginUser = async (req, res) => {
                          process.env.NODE_ENV === 'production' || 
                          process.env.RENDER === 'true';
 
-    if (user && (await bcrypt.compare(password, user.password))) {
+    if (!user) {
+      return res.status(401).json({ message: 'User does not exist' });
+    }
+
+    if (await bcrypt.compare(password, user.password)) {
       if (user.role === 'officer') {
         await ActivityLog.create({
           officerId: user._id,

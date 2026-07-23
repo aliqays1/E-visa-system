@@ -13,8 +13,6 @@ import {
   ShieldCheckIcon,
   ExclamationTriangleIcon,
   Bars3Icon,
-  ChevronLeftIcon,
-  ChevronRightIcon,
   DocumentTextIcon,
   CameraIcon,
   BuildingLibraryIcon,
@@ -32,10 +30,6 @@ const OfficerDashboard = () => {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const navigate = useNavigate();
 
-  // Pagination states
-  const [page, setPage] = useState(1);
-  const [totalPages, setTotalPages] = useState(1);
-  const [totalItems, setTotalItems] = useState(0);
 
   // Stats state
   const [stats, setStats] = useState({ totalApps: 0, pendingApps: 0, approvedApps: 0, rejectedApps: 0, overstays: 0 });
@@ -47,49 +41,39 @@ const OfficerDashboard = () => {
   // Retrieve user token
   const token = user ? user.token : null;
 
-  const fetchStats = React.useCallback(async () => {
-    if (!token) return;
-    try {
-      const res = await axios.get('/api/visa/stats', {
-        headers: { 'Authorization': `Bearer ${token}` }
-      });
-      if (res.data.success) {
-        setStats(res.data.stats);
-      }
-    } catch (error) {
-      console.error('Error fetching stats:', error);
-    }
-  }, [token]);
-
-  const fetchApplications = React.useCallback(async (signal) => {
+  const fetchData = React.useCallback(async (signal) => {
+    if (authLoading) return;
     if (!token) {
-      setLoading(false);
+      Promise.resolve().then(() => setLoading(false));
       return;
     }
-    // Only show full loading spinner on initial fetch when empty
-    setLoading(prev => applications.length === 0);
+    
+    Promise.resolve().then(() => setLoading(true));
     try {
-      const url = `/api/visa/all?page=1&limit=1000`;
+      const headers = { 'Authorization': `Bearer ${token}` };
+      
+      const statsPromise = axios.get('/api/visa/stats', { headers, signal });
+      const appsPromise = axios.get(`/api/visa/all?page=1&limit=1000`, { headers, signal });
 
-      const res = await axios.get(url, {
-        headers: { 'Authorization': `Bearer ${token}` },
-        signal: signal
-      });
-      if (res.data.success) {
-        setApplications(res.data.applications);
-        setTotalPages(res.data.pagination.pages);
-        setTotalItems(res.data.pagination.total);
+      const [statsRes, appsRes] = await Promise.all([statsPromise, appsPromise]);
+
+      if (statsRes.data.success) {
+        setStats(statsRes.data.stats);
+      }
+      
+      if (appsRes.data.success) {
+        setApplications(appsRes.data.applications);
       }
     } catch (error) {
       if (axios.isCancel(error)) {
         console.log('Request canceled', error.message);
       } else {
-        console.error('Error fetching applications:', error);
+        console.error('Error fetching dashboard data:', error);
       }
     } finally {
       setLoading(false);
     }
-  }, [token, applications.length]);
+  }, [token, authLoading]);
 
   const handleTabChange = (tab) => {
     if (activeTab === tab) return;
@@ -97,16 +81,13 @@ const OfficerDashboard = () => {
   };
 
   useEffect(() => {
-    fetchStats();
-  }, [fetchStats]);
-
-  useEffect(() => {
     const controller = new AbortController();
-    fetchApplications(controller.signal);
+    // eslint-disable-next-line
+    fetchData(controller.signal);
     return () => {
       controller.abort();
     };
-  }, [fetchApplications]);
+  }, [fetchData]);
 
   const handleUpdateStatus = async (id, newStatus) => {
     try {
@@ -131,7 +112,7 @@ const OfficerDashboard = () => {
         setApplications(prev => prev.map(app => app._id === id ? updatedApp : app));
         setSelectedApplication(null);
         setRejectionReason('');
-        fetchStats();
+        fetchData();
       } else {
         alert('Failed to update status: ' + res.data.message);
       }
@@ -162,7 +143,7 @@ const OfficerDashboard = () => {
     try {
       const res = await axios.put(`/api/visa/${id}/verify-payment`, {
         paymentStatus: status,
-        transactionId: `TXN-MANUAL-${Math.floor(Math.random()*10000)}`,
+        transactionId: `TXN-MANUAL-VERIFY`,
         amountPaid: 100
       }, {
         headers: { 'Authorization': `Bearer ${token}` }
@@ -171,7 +152,7 @@ const OfficerDashboard = () => {
       if (res.data.success) {
         alert(`Payment marked as ${status}!`);
         setApplications(prev => prev.filter(app => app._id !== id));
-        fetchStats();
+        fetchData();
       }
     } catch (error) {
       console.error(error);
@@ -211,7 +192,7 @@ const OfficerDashboard = () => {
       if (res.data.success) {
         alert(`Successfully recorded ${action} for ${app.personalDetails?.firstName}!`);
         setScanToken('');
-        fetchApplications();
+        fetchData();
       }
     } catch (error) {
       console.error(error);
@@ -227,8 +208,7 @@ const OfficerDashboard = () => {
       });
       if (res.data.success) {
         setNewlyDetectedOverstays(res.data.newOverstayIds || []);
-        fetchStats();
-        fetchApplications('alerts');
+        fetchData();
       }
     } catch (error) {
       console.error(error);
@@ -288,7 +268,7 @@ const OfficerDashboard = () => {
         </div>
         <div className="p-4 mt-2">
           <p className="text-[11px] font-bold text-white/50 uppercase tracking-widest mb-4 px-2">Navigation</p>
-          <nav className="flex-1 space-y-2 mt-4 px-3">
+          <nav className="flex-1 space-y-5 mt-4 px-3">
             <button onClick={() => handleTabChange('review')} className={`w-full flex items-center justify-start px-3 py-3 rounded-xl font-medium transition-all duration-200 text-left ${activeTab === 'review' ? 'bg-white/20 text-white shadow-md' : 'text-white/70 hover:bg-white/10 hover:text-white'}`}>
               <HomeIcon className="w-5 h-5 mr-3 flex-shrink-0" /> <span className="leading-tight">Application Review</span>
             </button>
@@ -399,7 +379,7 @@ const OfficerDashboard = () => {
                           <tr><td colSpan="5" className="px-8 py-10 text-center"><div className="inline-flex items-center justify-center space-x-2 text-gray-400"><svg className="animate-spin h-5 w-5 text-blue-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg><span className="font-medium animate-pulse">Loading records...</span></div></td></tr>
                         )}
                         {!loading && reviewApps.length === 0 && (
-                          <tr><td colSpan="5" className="px-8 py-10 text-center text-gray-500 font-medium">No records found.</td></tr>
+                          <tr><td colSpan="5" className="px-8 py-10 text-center"><div className="inline-flex items-center justify-center space-x-2 text-gray-400"><svg className="animate-spin h-5 w-5 text-blue-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg><span className="font-medium animate-pulse">Loading records...</span></div></td></tr>
                         )}
                         {reviewApps.map((app) => (
                           <tr key={app._id} className="hover:bg-blue-50/40 transition-all duration-200 group">
@@ -450,7 +430,7 @@ const OfficerDashboard = () => {
                       <tr><td colSpan="4" className="px-6 py-10 text-center"><div className="inline-flex items-center justify-center space-x-2 text-gray-400"><svg className="animate-spin h-5 w-5 text-blue-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg><span className="font-medium animate-pulse">Loading records...</span></div></td></tr>
                     )}
                     {!loading && paymentApps.length === 0 && (
-                      <tr><td colSpan="4" className="px-6 py-10 text-center text-gray-500 font-medium">No pending payment verifications found.</td></tr>
+                      <tr><td colSpan="4" className="px-6 py-10 text-center"><div className="inline-flex items-center justify-center space-x-2 text-gray-400"><svg className="animate-spin h-5 w-5 text-blue-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg><span className="font-medium animate-pulse">Loading records...</span></div></td></tr>
                     )}
                     {paymentApps.map((app) => (
                       <tr key={app._id} className="hover:bg-gray-50/50 transition-colors">
@@ -516,7 +496,7 @@ const OfficerDashboard = () => {
                         <tr><td colSpan="5" className="px-6 py-10 text-center"><div className="inline-flex items-center justify-center space-x-2 text-gray-400"><svg className="animate-spin h-5 w-5 text-blue-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg><span className="font-medium animate-pulse">Loading records...</span></div></td></tr>
                       )}
                       {!loading && borderApps.length === 0 && (
-                        <tr><td colSpan="5" className="px-6 py-10 text-center text-gray-500 font-medium">No border records found.</td></tr>
+                        <tr><td colSpan="5" className="px-6 py-10 text-center"><div className="inline-flex items-center justify-center space-x-2 text-gray-400"><svg className="animate-spin h-5 w-5 text-blue-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg><span className="font-medium animate-pulse">Loading records...</span></div></td></tr>
                       )}
                       {borderApps.map((app) => {
                         const isOverstayed = app.entryStatus === 'Overstayed' || app.overstayAlert;
@@ -601,17 +581,13 @@ const OfficerDashboard = () => {
                       </tr>
                     ))}
                     {!loading && alertApps.length === 0 && (
-                      <tr><td colSpan="5" className="text-center py-10 text-gray-500">No active alerts. System is clear.</td></tr>
+                      <tr><td colSpan="5" className="text-center py-10"><div className="inline-flex items-center justify-center space-x-2 text-red-400"><svg className="animate-spin h-5 w-5 text-red-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg><span className="font-medium animate-pulse">Loading alerts...</span></div></td></tr>
                     )}
                   </tbody>
                 </table>
               </div>
             </div>
           )}
-
-
-
-
         </main>
       </div>
 

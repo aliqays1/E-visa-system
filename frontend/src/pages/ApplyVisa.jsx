@@ -1,18 +1,19 @@
 import React, { useState, useContext, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { AuthContext } from '../context/AuthContext';
-import { IdentificationIcon, CameraIcon, PaperAirplaneIcon, CreditCardIcon } from '@heroicons/react/24/outline';
+import { IdentificationIcon, CameraIcon, PaperAirplaneIcon, CreditCardIcon, CheckCircleIcon } from '@heroicons/react/24/outline';
 import axios from 'axios';
 import CountryAutocomplete from '../components/CountryAutocomplete';
 
 const ApplyVisa = () => {
-  const { user } = useContext(AuthContext);
+  const { user, loading } = useContext(AuthContext);
   const token = user ? user.token : null;
   const [step, setStep] = useState(1);
   const navigate = useNavigate();
   const location = useLocation();
   const [isProcessingPayment, setIsProcessingPayment] = useState(false);
   const [paymentSuccess, setPaymentSuccess] = useState(false);
+  const [isSubmitted, setIsSubmitted] = useState(false);
   const [editId, setEditId] = useState(null);
 
   // Expanded Form State to include necessary fields
@@ -44,9 +45,29 @@ const ApplyVisa = () => {
   });
 
   useEffect(() => {
+    if (loading) return;
+    if (!user) {
+      const typeParam = new URLSearchParams(location.search).get('type');
+      let redirectUrl = '/register?redirect=apply';
+      if (typeParam) {
+        redirectUrl += `&type=${typeParam}`;
+      }
+      navigate(redirectUrl, { 
+        state: { message: 'You have to register or log in first before applying for a visa.' },
+        replace: true
+      });
+      return;
+    }
+
     const params = new URLSearchParams(location.search);
     const editMode = params.get('edit');
     const id = params.get('id');
+    
+    // Auto-select visa type if passed from home page
+    const typeParam = params.get('type');
+    if (typeParam && !formData.visaType) {
+      setFormData(prev => ({ ...prev, visaType: typeParam.charAt(0).toUpperCase() + typeParam.slice(1) }));
+    }
     
     if (editMode === 'true' && id && token) {
       setEditId(id);
@@ -81,7 +102,7 @@ const ApplyVisa = () => {
         }
       }).catch(err => console.error("Error fetching application to edit", err));
     }
-  }, [location.search, token]);
+  }, [location.search, token, user, loading]);
 
   const steps = [
     { id: 1, name: 'Guidance & Preparation', desc: 'Read guidelines & checklists' },
@@ -196,12 +217,55 @@ const ApplyVisa = () => {
         alert('Error updating application: ' + (error.response?.data?.message || error.message));
       }
     } else {
-      localStorage.setItem('pendingVisaApplication', JSON.stringify({ 
-        ...formData, 
-        amountPaid: amountDue, 
-        paymentStatus: formData.paymentMethod === 'Bank Transfer' ? 'Pending' : 'Completed' 
+      const formDataToSend = new FormData();
+      formDataToSend.append('visaType', formData.visaType);
+      formDataToSend.append('purposeOfTravel', formData.purpose);
+      formDataToSend.append('visaDuration', formData.duration);
+      formDataToSend.append('paymentMethod', formData.paymentMethod);
+      formDataToSend.append('amountPaid', amountDue);
+      formDataToSend.append('paymentStatus', formData.paymentMethod === 'Bank Transfer' ? 'Pending' : 'Completed');
+      formDataToSend.append('personalDetails', JSON.stringify({
+        firstName: formData.firstName,
+        lastName: formData.lastName,
+        passportNumber: formData.passportNumber,
+        nationality: formData.nationality,
+        passportExpiry: formData.passportExpiry,
+        phone: formData.phone,
+        email: formData.email
       }));
-      navigate('/login?redirect=applicant');
+      formDataToSend.append('travelDetails', JSON.stringify({
+        arrivalDate: formData.arrivalDate,
+        departureDate: formData.departureDate,
+        hostAddress: formData.hostAddress,
+        phone: formData.phone
+      }));
+
+      const passportBlob = dataURItoBlob(formData.passportScanData);
+      if (passportBlob) formDataToSend.append('passportDocument', passportBlob, formData.passportScanName);
+
+      const photoBlob = dataURItoBlob(formData.selfieData);
+      if (photoBlob) formDataToSend.append('photoDocument', photoBlob, formData.selfieName);
+
+      const supportBlob = dataURItoBlob(formData.supportingDocData);
+      if (supportBlob) formDataToSend.append('supportingDocument', supportBlob, formData.supportingDocName);
+
+      try {
+        const res = await axios.post('/api/visa/apply', formDataToSend, {
+          headers: {
+            'Content-Type': 'multipart/form-data',
+            'Authorization': `Bearer ${token}`
+          }
+        });
+        if (res.data.success) {
+          localStorage.removeItem('pendingVisaApplication');
+          setIsSubmitted(true);
+        } else {
+          alert('Failed to submit application: ' + res.data.message);
+        }
+      } catch (error) {
+        console.error(error);
+        alert('Error submitting application: ' + (error.response?.data?.message || error.message));
+      }
     }
   };
 
@@ -283,6 +347,14 @@ const ApplyVisa = () => {
         );
     }
   };
+
+  if (loading || !user) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-50 to-slate-200">
+         <div className="animate-spin rounded-full h-12 w-12 border-4 border-indigo-600 border-t-transparent"></div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-200 py-8 px-4 sm:px-6 lg:px-8 font-sans">
@@ -371,8 +443,25 @@ const ApplyVisa = () => {
 
           {/* Form Body */}
           <div className="p-8 sm:p-10 flex-grow">
-            <form onSubmit={handleSubmit}>
-              
+            {isSubmitted ? (
+              <div className="flex flex-col items-center justify-center py-16 animate-fadeIn text-center">
+                <div className="w-28 h-28 bg-green-50 rounded-full flex items-center justify-center mb-6 shadow-inner ring-8 ring-green-50/50">
+                  <CheckCircleIcon className="w-16 h-16 text-green-500" />
+                </div>
+                <h2 className="text-3xl font-black text-gray-900 mb-4 tracking-tight">Application Submitted!</h2>
+                <p className="text-gray-500 mb-10 max-w-md leading-relaxed">
+                  Your visa application has been securely transmitted to the Immigration & Citizenship Service. You can now track its status from your dashboard.
+                </p>
+                <button
+                  type="button"
+                  onClick={() => navigate('/applicant')}
+                  className="px-10 py-4 bg-gradient-to-r from-primary to-[#4338ca] text-white font-bold rounded-xl hover:opacity-90 transition-all shadow-lg shadow-primary/30 hover:-translate-y-0.5"
+                >
+                  Go to My Dashboard
+                </button>
+              </div>
+            ) : (
+              <form onSubmit={handleSubmit}>
               {/* Step 1: Detailed Guidance & Requirements */}
               {step === 1 && (
                 <div className="space-y-8 animate-fadeIn">
@@ -930,24 +1019,12 @@ const ApplyVisa = () => {
                   <h3 className="text-3xl font-extrabold text-gray-900 mb-2">Payment Successful!</h3>
                   <p className="text-gray-500 text-lg mb-6">You have successfully paid <strong className="text-primary">${amountDue}</strong> for your visa application.</p>
                   
-                  <div className="mb-8 p-4 bg-amber-50 border border-amber-200 rounded-xl max-w-md text-left flex items-start gap-3">
-                    <svg className="w-5 h-5 text-amber-500 shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-                    </svg>
-                    <div>
-                      <h4 className="text-amber-800 font-bold text-sm">Application Not Yet Submitted</h4>
-                      <p className="text-amber-700 text-xs mt-1 leading-relaxed">
-                        Your payment has been received, but your visa application is not yet submitted. You must login or register in the next step to complete and submit it.
-                      </p>
-                    </div>
-                  </div>
-
                   <button 
                     type="button" 
                     onClick={finalizeApplication}
                     className="px-10 py-4 bg-gradient-to-r from-primary to-[#4338ca] text-white font-bold rounded-xl hover:opacity-90 transition-all shadow-md shadow-primary/30 hover:-translate-y-0.5 text-lg"
                   >
-                    Continue to Login/Register
+                    Submit the Application
                   </button>
                 </div>
               )}
@@ -975,6 +1052,7 @@ const ApplyVisa = () => {
               )}
 
             </form>
+            )}
           </div>
         </div>
 

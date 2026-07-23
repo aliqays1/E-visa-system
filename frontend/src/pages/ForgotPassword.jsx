@@ -128,18 +128,30 @@ const ForgotPassword = () => {
   };
 
   return (
-    <div className="min-h-screen bg-[#f4f7fa] flex">
-      {/* Left side - Form */}
-      <div className="w-full lg:w-1/2 flex items-center justify-center p-6 sm:p-12">
-        <div className="w-full max-w-[480px]">
+    <div className="min-h-screen flex items-center justify-center font-sans selection:bg-blue-200 relative overflow-hidden">
+      {/* Full screen background */}
+      <div className="absolute inset-0 z-0">
+        <img 
+          src="https://images.unsplash.com/photo-1556388158-158ea5ccacbd?q=80&w=2070&auto=format&fit=crop" 
+          alt="Modern Airport Terminal" 
+          className="object-cover w-full h-full scale-105"
+        />
+        <div className="absolute inset-0 bg-gradient-to-br from-blue-900/90 via-indigo-900/80 to-slate-900/90 mix-blend-multiply"></div>
+        <div className="absolute inset-0 bg-black/40"></div>
+      </div>
+
+      {/* Centered Card */}
+      <div className="w-full max-w-lg bg-white/95 backdrop-blur-xl rounded-[2.5rem] shadow-[0_20px_50px_rgba(0,0,0,0.5)] p-8 sm:p-10 relative z-10 mx-4 border border-white/40">
           
-          {/* Logo */}
-          <div className="flex items-center mb-10">
-            <Link to="/" className="flex items-center cursor-pointer">
-              <GlobeAltIcon className="h-10 w-10 text-primary mr-3" />
-              <div>
-                <h1 className="text-xl font-bold text-gray-900 tracking-tight leading-none">Somalia</h1>
-                <p className="text-xs font-bold tracking-widest text-primary uppercase mt-0.5">E-Visa Portal</p>
+          <div className="flex items-center mb-10 pt-4 sm:pt-0">
+            {/* Logo */}
+            <Link to="/" className="flex items-center cursor-pointer group">
+              <div className="bg-gradient-to-tr from-blue-600 to-indigo-600 p-2.5 rounded-2xl shadow-lg shadow-blue-500/30 group-hover:shadow-blue-500/50 transition-all duration-300 mr-4">
+                <GlobeAltIcon className="h-7 w-7 text-white" />
+              </div>
+              <div className="flex flex-col text-left">
+                <span className="font-extrabold text-2xl text-gray-900 tracking-tight leading-none group-hover:text-blue-600 transition-colors">Somalia</span>
+                <span className="font-bold text-[11px] text-gray-500 tracking-[0.2em] uppercase mt-0.5">E-Visa Portal</span>
               </div>
             </Link>
           </div>
@@ -154,8 +166,12 @@ const ForgotPassword = () => {
               </div>
 
               {error && (
-                <div className="mb-6 bg-red-50 text-red-600 p-4 rounded-xl text-sm border border-red-100 font-medium">
-                  {error}
+                <div className="mb-8 bg-gradient-to-r from-red-50 to-rose-50 border border-red-200/60 text-red-800 px-5 py-4 rounded-2xl shadow-sm flex items-start gap-3 relative overflow-hidden">
+                  <div className="absolute top-0 left-0 w-1.5 h-full bg-gradient-to-b from-red-500 to-rose-600"></div>
+                  <svg className="w-5 h-5 mt-0.5 text-red-500 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" /></svg>
+                  <div className="flex-1 text-base font-semibold leading-tight">
+                    {error}
+                  </div>
                 </div>
               )}
 
@@ -342,36 +358,6 @@ const ForgotPassword = () => {
           )}
         </div>
       </div>
-
-      {/* Right side - Hero/Image */}
-      <div className="hidden lg:flex lg:w-1/2 bg-slate-900 items-center justify-center relative overflow-hidden">
-        {/* Dynamic decorative elements */}
-        <div className="absolute top-0 left-0 w-full h-full">
-          <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-blue-600 rounded-full mix-blend-multiply filter blur-3xl opacity-20 animate-blob"></div>
-          <div className="absolute top-1/3 right-1/4 w-96 h-96 bg-indigo-600 rounded-full mix-blend-multiply filter blur-3xl opacity-20 animate-blob animation-delay-2000"></div>
-          <div className="absolute bottom-1/4 left-1/2 w-96 h-96 bg-primary rounded-full mix-blend-multiply filter blur-3xl opacity-20 animate-blob animation-delay-4000"></div>
-        </div>
-
-        <div className="relative z-10 p-12 max-w-lg text-center">
-          <GlobeAltIcon className="h-20 w-20 text-white/90 mx-auto mb-8" />
-          <h2 className="text-4xl font-extrabold text-white mb-6 leading-tight">Secure Account Recovery</h2>
-          <div className="space-y-6 text-left">
-            <div className="flex items-start">
-              <div className="flex-shrink-0 h-8 w-8 rounded-full bg-white/10 flex items-center justify-center text-white font-bold text-sm mt-1">1</div>
-              <p className="ml-4 text-blue-100 text-lg leading-relaxed">Request a secure password reset code to your registered email address.</p>
-            </div>
-            <div className="flex items-start">
-              <div className="flex-shrink-0 h-8 w-8 rounded-full bg-white/10 flex items-center justify-center text-white font-bold text-sm mt-1">2</div>
-              <p className="ml-4 text-blue-100 text-lg leading-relaxed">Verify your identity instantly using the 6-digit one-time password.</p>
-            </div>
-            <div className="flex items-start">
-              <div className="flex-shrink-0 h-8 w-8 rounded-full bg-white/10 flex items-center justify-center text-white font-bold text-sm mt-1">3</div>
-              <p className="ml-4 text-blue-100 text-lg leading-relaxed">Create a new, strong password to regain access to your applications.</p>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
   );
 };
 

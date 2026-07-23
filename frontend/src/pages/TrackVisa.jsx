@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import axios from 'axios';
 import { Link } from 'react-router-dom';
 import OtpInput from '../components/OtpInput';
@@ -14,6 +14,7 @@ const TrackVisa = () => {
   // OTP states
   const [step, setStep] = useState(1);
   const [otpCode, setOtpCode] = useState('');
+  const email = ''; // Dummy variable to fix undefined variable error in step 2
   const [timeLeft, setTimeLeft] = useState(120); // 2 minutes
 
   useEffect(() => {

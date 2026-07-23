@@ -1,6 +1,6 @@
 import React, { useContext, useState, useEffect } from 'react';
 import { AuthContext } from '../context/AuthContext';
-import { Navigate, Link } from 'react-router-dom';
+import { Navigate, Link, useNavigate } from 'react-router-dom';
 import axios from 'axios';
 
 const ApplicantDashboard = () => {
@@ -8,6 +8,7 @@ const ApplicantDashboard = () => {
   const [applications, setApplications] = useState([]);
   const [loading, setLoading] = useState(true);
   const [selectedVisa, setSelectedVisa] = useState(null); // For viewing visa details/QR code
+  const navigate = useNavigate();
 
   // Retrieve user token
   const token = user ? user.token : null;

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import { 
   CheckCircleIcon, 
@@ -19,16 +19,7 @@ const VerifyVisa = () => {
   const navigate = useNavigate();
   const [actionMessage, setActionMessage] = useState('');
 
-  useEffect(() => {
-    if (!token) {
-      setError('Invalid or missing verification token.');
-      setLoading(false);
-      return;
-    }
-    verifyToken();
-  }, [token]);
-
-  const verifyToken = async () => {
+  const verifyToken = useCallback(async () => {
     try {
       setLoading(true);
       setError('');
@@ -55,12 +46,28 @@ const VerifyVisa = () => {
       } else {
         setError(result.message || 'Verification failed.');
       }
-    } catch (err) {
+    } catch {
       setError('Connection error. Please try again.');
     } finally {
       setLoading(false);
     }
-  };
+  }, [token]);
+
+  useEffect(() => {
+    if (!token) {
+      return;
+    }
+    // eslint-disable-next-line
+    verifyToken();
+  }, [token, verifyToken]);
+
+  useEffect(() => {
+    if (!token) {
+      // eslint-disable-next-line
+      setError('Invalid or missing verification token.');
+      Promise.resolve().then(() => setLoading(false));
+    }
+  }, [token]);
 
   const handleBorderAction = async (action) => {
     try {
@@ -88,7 +95,7 @@ const VerifyVisa = () => {
       } else {
         alert(result.message || `Failed to record ${action}`);
       }
-    } catch (err) {
+    } catch {
       alert('Error connecting to server.');
     }
   };

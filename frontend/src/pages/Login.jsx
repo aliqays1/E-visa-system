@@ -1,6 +1,6 @@
 import React, { useState, useContext, useEffect } from 'react';
 import { AuthContext } from '../context/AuthContext';
-import { useNavigate, Link } from 'react-router-dom';
+import { useNavigate, Link, useLocation } from 'react-router-dom';
 import { GlobeAltIcon, EyeIcon, EyeSlashIcon, EnvelopeIcon } from '@heroicons/react/24/outline';
 import OtpInput from '../components/OtpInput';
 
@@ -25,6 +25,12 @@ const Login = () => {
 
   const { login, verifyLoginOtp } = useContext(AuthContext);
   const navigate = useNavigate();
+  const location = useLocation();
+  const [message, setMessage] = useState(() => {
+    const searchParams = new URLSearchParams(location.search);
+    const isApplyRedirect = searchParams.get('redirect') === 'apply';
+    return location.state?.message || (isApplyRedirect ? 'You have to register or log in first before applying for a visa.' : '');
+  });
 
   const handleLoginSubmit = async (e) => {
     e.preventDefault();
@@ -79,7 +85,13 @@ const Login = () => {
   };
 
   const redirectUser = (user) => {
-    if (user && user.role === 'officer') {
+    const params = new URLSearchParams(location.search);
+    const redirectParam = params.get('redirect');
+    const typeParam = params.get('type');
+
+    if (redirectParam) {
+      navigate(`/${redirectParam}${typeParam ? `?type=${typeParam}` : ''}`);
+    } else if (user && user.role === 'officer') {
       navigate('/admin');
     } else if (user && user.role === 'auditor') {
       navigate('/auditor');
@@ -89,20 +101,23 @@ const Login = () => {
   };
 
   return (
-    <div className="min-h-screen bg-white flex font-sans selection:bg-blue-200">
-      {/* Left side - Form */}
-      <div className="w-full lg:w-1/2 flex items-center justify-center p-6 sm:p-12 relative overflow-hidden">
-        
-        {/* Subtle decorative background blobs for the left side */}
-        <div className="absolute top-0 left-0 w-full h-full overflow-hidden -z-10 pointer-events-none">
-          <div className="absolute -top-[20%] -left-[10%] w-[50%] h-[50%] rounded-full bg-blue-50/50 blur-3xl"></div>
-          <div className="absolute bottom-[10%] -right-[20%] w-[60%] h-[60%] rounded-full bg-indigo-50/50 blur-3xl"></div>
-        </div>
+    <div className="min-h-screen flex items-center justify-center font-sans selection:bg-blue-200 relative overflow-hidden">
+      {/* Full screen background */}
+      <div className="absolute inset-0 z-0">
+        <img 
+          src="https://images.unsplash.com/photo-1556388158-158ea5ccacbd?q=80&w=2070&auto=format&fit=crop" 
+          alt="Modern Airport Terminal" 
+          className="object-cover w-full h-full scale-105"
+        />
+        <div className="absolute inset-0 bg-gradient-to-br from-blue-900/90 via-indigo-900/80 to-slate-900/90 mix-blend-multiply"></div>
+        <div className="absolute inset-0 bg-black/40"></div>
+      </div>
 
-        <div className="w-full max-w-[420px] relative z-10">
+      {/* Centered Card */}
+      <div className="w-full max-w-lg bg-white/95 backdrop-blur-xl rounded-[2.5rem] shadow-[0_20px_50px_rgba(0,0,0,0.5)] p-8 sm:p-10 relative z-10 mx-4 border border-white/40">
           
-          {/* Logo */}
-          <div className="flex items-center mb-12">
+          <div className="flex items-center mb-10">
+            {/* Logo */}
             <Link to="/" className="flex items-center cursor-pointer group">
               <div className="bg-gradient-to-tr from-blue-600 to-indigo-600 p-2.5 rounded-2xl shadow-lg shadow-blue-500/30 group-hover:shadow-blue-500/50 transition-all duration-300 mr-4">
                 <GlobeAltIcon className="h-7 w-7 text-white" />
@@ -116,15 +131,26 @@ const Login = () => {
 
           {step === 1 ? (
             <div className="animate-fade-in-up">
-              <div className="mb-10">
+              <div className="mb-8">
                 <h1 className="text-4xl font-extrabold text-gray-900 mb-3 tracking-tight">Welcome back</h1>
                 <p className="text-gray-500 font-medium text-lg">Enter your credentials to access your account.</p>
               </div>
 
+              {message && (
+                <div className="mb-8 bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200/60 text-indigo-800 px-5 py-4 rounded-2xl shadow-sm flex items-start gap-3 relative overflow-hidden">
+                  <div className="absolute top-0 left-0 w-1.5 h-full bg-gradient-to-b from-blue-500 to-indigo-600"></div>
+                  <div className="flex-1 text-base font-semibold leading-tight pl-2">
+                    {message}
+                  </div>
+                </div>
+              )}
               {error && (
-                <div className="mb-6 bg-red-50/80 backdrop-blur-sm text-red-600 p-4 rounded-2xl text-sm border border-red-100 font-medium flex items-center shadow-sm">
-                  <svg className="w-5 h-5 mr-3 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" /></svg>
-                  {error}
+                <div className="mb-8 bg-gradient-to-r from-red-50 to-rose-50 border border-red-200/60 text-red-800 px-5 py-4 rounded-2xl shadow-sm flex items-start gap-3 relative overflow-hidden">
+                  <div className="absolute top-0 left-0 w-1.5 h-full bg-gradient-to-b from-red-500 to-rose-600"></div>
+                  <svg className="w-5 h-5 mt-0.5 text-red-500 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" /></svg>
+                  <div className="flex-1 text-base font-semibold leading-tight">
+                    {error}
+                  </div>
                 </div>
               )}
 
@@ -191,7 +217,7 @@ const Login = () => {
               <div className="mt-10 text-center">
                 <p className="text-gray-500 font-medium">
                   Don't have an account?{' '}
-                  <Link to="/register" className="font-bold text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 transition-all">
+                  <Link to={`/register${location.search}`} className="font-bold text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 transition-all">
                     Create one now
                   </Link>
                 </p>
@@ -276,51 +302,6 @@ const Login = () => {
             </div>
           )}
         </div>
-      </div>
-
-      {/* Right side - Stunning Visual */}
-      <div className="hidden lg:flex lg:w-1/2 relative items-center justify-center overflow-hidden">
-        {/* Unsplash Image Background */}
-        <div className="absolute inset-0">
-          <img 
-            src="https://images.unsplash.com/photo-1556388158-158ea5ccacbd?q=80&w=2070&auto=format&fit=crop" 
-            alt="Modern Airport Terminal" 
-            className="object-cover w-full h-full scale-105"
-          />
-        </div>
-        
-        {/* Deep Premium Gradient Overlay */}
-        <div className="absolute inset-0 bg-gradient-to-br from-blue-900/90 via-indigo-900/80 to-slate-900/90 mix-blend-multiply"></div>
-        
-        {/* Extra glow effect */}
-        <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent"></div>
-        
-        <div className="relative z-10 p-16 flex flex-col justify-end h-full w-full max-w-2xl text-white">
-          <div className="mb-8">
-            <div className="inline-flex items-center justify-center p-3 bg-white/10 backdrop-blur-md rounded-2xl border border-white/20 shadow-2xl mb-6">
-              <GlobeAltIcon className="h-10 w-10 text-white" />
-            </div>
-            <h2 className="text-5xl font-extrabold mb-6 leading-[1.1] tracking-tight drop-shadow-lg">
-              Gateway to the<br/>Horn of Africa.
-            </h2>
-            <p className="text-blue-50 text-xl leading-relaxed font-medium max-w-lg drop-shadow-md opacity-90">
-              Experience a seamless, fully digital visa application process designed for modern travelers and global citizens.
-            </p>
-          </div>
-          
-          {/* Glassmorphism Info Cards */}
-          <div className="grid grid-cols-2 gap-4 mt-8">
-            <div className="bg-white/10 backdrop-blur-md border border-white/10 rounded-2xl p-5 shadow-xl">
-              <h3 className="font-bold text-lg mb-1">Fast Processing</h3>
-              <p className="text-blue-100/70 text-sm font-medium">Get your e-visa approved in record time.</p>
-            </div>
-            <div className="bg-white/10 backdrop-blur-md border border-white/10 rounded-2xl p-5 shadow-xl">
-              <h3 className="font-bold text-lg mb-1">Secure Portal</h3>
-              <p className="text-blue-100/70 text-sm font-medium">Enterprise-grade security for your data.</p>
-            </div>
-          </div>
-        </div>
-      </div>
       
       <style dangerouslySetInnerHTML={{__html: `
         @keyframes fadeInUp {

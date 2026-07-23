@@ -108,7 +108,6 @@ const missingUploadHandler = (req, res) => {
   `);
 };
 
-app.get('/uploads/*', missingUploadHandler);
 app.use('/uploads', missingUploadHandler);
 
 // Routes

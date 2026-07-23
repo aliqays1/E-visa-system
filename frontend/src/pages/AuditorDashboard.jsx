@@ -183,7 +183,7 @@ const AuditorDashboard = () => {
           Auditor Panels
         </div>
 
-        <nav className="flex-1 px-4 space-y-2">
+        <nav className="flex-1 px-4 space-y-5 mt-4">
           <button onClick={() => setActiveTab('overview')} className={`w-full flex items-center space-x-3 px-4 py-3 text-sm font-medium rounded-xl transition-all duration-200 ${activeTab === 'overview' ? 'bg-indigo-600 text-white shadow-lg' : 'text-gray-300 hover:bg-gray-800'}`}>
             <ChartBarIcon className="h-5 w-5" />
             <span>Overview KPIs</span>

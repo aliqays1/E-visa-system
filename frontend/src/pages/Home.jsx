@@ -1,5 +1,6 @@
-import React from 'react';
+import React, { useContext } from 'react';
 import { Link } from 'react-router-dom';
+import { AuthContext } from '../context/AuthContext';
 import bannerImage from '../assets/The Queen of the Skies_ Emirates A380 Golden Hour Departure ✈️🌇.jpg';
 import { 
   PhoneIcon,
@@ -12,6 +13,8 @@ import {
 } from '@heroicons/react/24/outline';
 
 const Home = () => {
+  const { user } = useContext(AuthContext);
+
   return (
     <div className="font-sans text-gray-800 bg-white min-h-screen">
 
@@ -19,7 +22,7 @@ const Home = () => {
       {/* Navigation */}
       <header className="sticky top-0 bg-white/95 backdrop-blur-md shadow-sm border-b border-gray-100 z-50 transition-all duration-300">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between h-24 items-center">
+          <div className="flex justify-between h-24 items-center gap-4 lg:gap-8">
             <div className="flex-shrink-0 flex items-center cursor-pointer group">
               <div className="relative h-12 w-12 mr-3 flex items-center justify-center bg-blue-50 rounded-full border-2 border-blue-100 group-hover:border-blue-300 transition-colors duration-300 shadow-sm">
                 <svg viewBox="0 0 100 100" className="w-8 h-8 text-primary animate-[spin_20s_linear_infinite]">
@@ -35,28 +38,28 @@ const Home = () => {
                 <span className="font-medium text-sm text-primary tracking-widest uppercase">E-Visa Portal</span>
               </div>
             </div>
-            <nav className="hidden md:flex items-center space-x-12">
-              <Link to="/" className="relative text-primary font-black uppercase tracking-[0.15em] text-sm group py-2">
+            <nav className="hidden md:flex items-center space-x-6 lg:space-x-12">
+              <Link to="/" className="relative text-primary font-black uppercase tracking-[0.15em] text-sm group py-2 whitespace-nowrap">
                 Home
                 <span className="absolute bottom-0 left-0 w-full h-[3px] bg-primary rounded-full shadow-[0_0_10px_rgba(59,130,246,0.8)]"></span>
               </Link>
-              <a href="#visa-types" className="relative text-slate-500 hover:text-slate-900 transition-colors font-extrabold uppercase tracking-[0.15em] text-sm group py-2">
+              <a href="#visa-types" className="relative text-slate-500 hover:text-slate-900 transition-colors font-extrabold uppercase tracking-[0.15em] text-sm group py-2 whitespace-nowrap">
                 Visa Types
                 <span className="absolute bottom-0 left-0 w-full h-[3px] bg-primary rounded-full transform scale-x-0 group-hover:scale-x-100 transition-transform duration-300 shadow-[0_0_10px_rgba(59,130,246,0.8)] origin-left"></span>
               </a>
-              <a href="#guidelines" className="relative text-slate-500 hover:text-slate-900 transition-colors font-extrabold uppercase tracking-[0.15em] text-sm group py-2">
+              <a href="#guidelines" className="relative text-slate-500 hover:text-slate-900 transition-colors font-extrabold uppercase tracking-[0.15em] text-sm group py-2 whitespace-nowrap">
                 Guidelines
                 <span className="absolute bottom-0 left-0 w-full h-[3px] bg-primary rounded-full transform scale-x-0 group-hover:scale-x-100 transition-transform duration-300 shadow-[0_0_10px_rgba(59,130,246,0.8)] origin-left"></span>
               </a>
-              <a href="#contact" className="relative text-slate-500 hover:text-slate-900 transition-colors font-extrabold uppercase tracking-[0.15em] text-sm group py-2">
+              <a href="#contact" className="relative text-slate-500 hover:text-slate-900 transition-colors font-extrabold uppercase tracking-[0.15em] text-sm group py-2 whitespace-nowrap">
                 Contact
                 <span className="absolute bottom-0 left-0 w-full h-[3px] bg-primary rounded-full transform scale-x-0 group-hover:scale-x-100 transition-transform duration-300 shadow-[0_0_10px_rgba(59,130,246,0.8)] origin-left"></span>
               </a>
             </nav>
-            <div className="flex items-center space-x-6">
+            <div className="flex items-center space-x-8">
               <a 
                 href="mailto:support.evisa@gmail.com?subject=E-Visa%20Support%20Request&body=%2A%20Full%20Name%0D%0A%2A%20Description%20of%20the%20Issue"
-                className="hidden md:flex items-center bg-primary text-white px-6 py-3 rounded-lg shadow-lg shadow-blue-500/20 hover:bg-blue-700 transition-colors cursor-pointer"
+                className="hidden md:flex items-center bg-primary text-white px-6 py-3 rounded-xl shadow-lg shadow-blue-500/20 hover:bg-blue-700 transition-colors cursor-pointer"
               >
                 <EnvelopeIcon className="h-6 w-6 mr-3" />
                 <div>
@@ -64,10 +67,17 @@ const Home = () => {
                   <div className="font-bold text-base leading-tight">support.evisa@gmail.com</div>
                 </div>
               </a>
-              <Link to="/login" className="px-6 md:px-8 py-2.5 rounded-full bg-primary/10 text-primary font-bold border border-primary/20 hover:bg-primary hover:text-white transition-all duration-300 shadow-sm hover:shadow-md transform hover:-translate-y-0.5 flex items-center gap-2">
-                <svg className="w-4 h-4 hidden sm:block" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M11 16l-4-4m0 0l4-4m-4 4h14m-5 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h7a3 3 0 013 3v1"></path></svg>
-                Login
-              </Link>
+              {user ? (
+                <Link to={user.role === 'officer' ? '/admin' : user.role === 'auditor' ? '/auditor' : '/applicant'} className="whitespace-nowrap px-6 md:px-8 py-3 rounded-xl bg-white text-gray-800 font-bold border border-gray-200 hover:border-primary hover:text-primary transition-all duration-300 shadow-sm hover:shadow-md transform hover:-translate-y-0.5 flex items-center gap-2">
+                  <svg className="w-5 h-5 hidden sm:block text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path></svg>
+                  Welcome, {(user.fullName || user.name || 'User').split(' ')[0]}
+                </Link>
+              ) : (
+                <Link to="/login" className="whitespace-nowrap px-6 md:px-8 py-3 rounded-xl bg-white text-gray-800 font-bold border border-gray-200 hover:border-primary hover:text-primary transition-all duration-300 shadow-sm hover:shadow-md transform hover:-translate-y-0.5 flex items-center gap-2">
+                  <svg className="w-5 h-5 hidden sm:block text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M11 16l-4-4m0 0l4-4m-4 4h14m-5 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h7a3 3 0 013 3v1"></path></svg>
+                  Login
+                </Link>
+              )}
             </div>
           </div>
         </div>
