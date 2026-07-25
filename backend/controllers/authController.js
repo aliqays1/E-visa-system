@@ -28,12 +28,12 @@ exports.registerUser = async (req, res) => {
     const salt = await bcrypt.genSalt(10);
     const hashedPassword = await bcrypt.hash(password, salt);
 
-    const isProduction = req.hostname.includes('onrender.com') || 
+    const isProduction = req.hostname.includes('up.railway.app') || 
                          process.env.NODE_ENV === 'production' || 
-                         process.env.RENDER === 'true';
+                         process.env.RAILWAY_ENVIRONMENT;
 
     if (isProduction) {
-      // Create user immediately (bypassing OTP since Render blocks emails)
+      // Create user immediately (bypassing OTP since Railway is currently configured to bypass emails)
       const user = await User.create({
         fullName,
         email,
