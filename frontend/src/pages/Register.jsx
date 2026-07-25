@@ -13,7 +13,6 @@ const Register = () => {
   const [nationality, setNationality] = useState('');
   
   const [showPassword, setShowPassword] = useState(false);
-  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
@@ -245,20 +244,13 @@ const Register = () => {
                     <label className="block text-xs font-extrabold uppercase tracking-widest text-gray-500 ml-1">Confirm</label>
                     <div className="relative">
                       <input 
-                        type={showConfirmPassword ? "text" : "password"} 
-                        className="w-full px-5 py-3.5 rounded-2xl border border-gray-200 focus:outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 transition-all text-gray-900 bg-white shadow-sm hover:border-gray-300 text-base pr-12"
+                        type={showPassword ? "text" : "password"} 
+                        className="w-full px-5 py-3.5 rounded-2xl border border-gray-200 focus:outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 transition-all text-gray-900 bg-white shadow-sm hover:border-gray-300 text-base"
                         placeholder="••••••••"
                         value={confirmPassword}
                         onChange={(e) => setConfirmPassword(e.target.value)}
                         required
                       />
-                      <button 
-                        type="button"
-                        className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-700 transition-colors p-1"
-                        onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                      >
-                        {showConfirmPassword ? <EyeSlashIcon className="h-5 w-5" /> : <EyeIcon className="h-5 w-5" />}
-                      </button>
                     </div>
                   </div>
                 </div>

@@ -8,34 +8,55 @@ export const AuthProvider = ({ children }) => {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const userInfo = sessionStorage.getItem('userInfo');
+    const userInfo = localStorage.getItem('userInfo') || sessionStorage.getItem('userInfo');
     if (userInfo) {
       setUser(JSON.parse(userInfo));
     }
     setLoading(false);
   }, []);
 
-  const login = async (email, password) => {
+  const saveAuthSession = (data, email, rememberMe = true) => {
+    setUser(data);
+    sessionStorage.setItem('userInfo', JSON.stringify(data));
+    if (rememberMe) {
+      localStorage.setItem('userInfo', JSON.stringify(data));
+      if (email) {
+        localStorage.setItem('remembered_email', email);
+        localStorage.setItem('remember_me', 'true');
+      }
+    } else {
+      localStorage.removeItem('userInfo');
+      localStorage.removeItem('remembered_email');
+      localStorage.setItem('remember_me', 'false');
+    }
+  };
+
+  const login = async (email, password, rememberMe = true) => {
     try {
       const { data } = await axios.post('/api/auth/login', { email, password });
+      if (rememberMe) {
+        localStorage.setItem('remembered_email', email);
+        localStorage.setItem('remember_me', 'true');
+      } else {
+        localStorage.removeItem('remembered_email');
+        localStorage.setItem('remember_me', 'false');
+      }
       // The backend now returns { requires_otp: true, email }
       if (data.requires_otp) {
         return { success: true, requires_otp: true, email: data.email };
       }
       // Fallback if OTP is disabled
-      setUser(data);
-      sessionStorage.setItem('userInfo', JSON.stringify(data));
+      saveAuthSession(data, email, rememberMe);
       return { success: true, user: data };
     } catch (error) {
       return { success: false, message: error.response?.data?.message || 'Login failed' };
     }
   };
 
-  const verifyLoginOtp = async (email, code) => {
+  const verifyLoginOtp = async (email, code, rememberMe = true) => {
     try {
       const { data } = await axios.post('/api/auth/verify-login', { email, code });
-      setUser(data);
-      sessionStorage.setItem('userInfo', JSON.stringify(data));
+      saveAuthSession(data, email, rememberMe);
       return { success: true, user: data };
     } catch (error) {
       return { success: false, message: error.response?.data?.message || 'Verification failed' };
@@ -51,11 +72,14 @@ export const AuthProvider = ({ children }) => {
         phone,
         nationality
       });
+      // Store remembered email & remember state on registration
+      localStorage.setItem('remembered_email', email);
+      localStorage.setItem('remember_me', 'true');
+
       if (data.requires_otp) {
         return { success: true, requires_otp: true, email: data.email };
       }
-      setUser(data);
-      sessionStorage.setItem('userInfo', JSON.stringify(data));
+      saveAuthSession(data, email, true);
       return { success: true };
     } catch (error) {
       return { success: false, message: error.response?.data?.message || 'Registration failed' };
@@ -65,8 +89,9 @@ export const AuthProvider = ({ children }) => {
   const verifyRegisterOtp = async (email, code) => {
     try {
       const { data } = await axios.post('/api/auth/verify-register', { email, code });
-      setUser(data);
-      sessionStorage.setItem('userInfo', JSON.stringify(data));
+      localStorage.setItem('remembered_email', email);
+      localStorage.setItem('remember_me', 'true');
+      saveAuthSession(data, email, true);
       return { success: true, user: data };
     } catch (error) {
       return { success: false, message: error.response?.data?.message || 'Verification failed' };
@@ -103,6 +128,7 @@ export const AuthProvider = ({ children }) => {
   const logout = () => {
     setUser(null);
     sessionStorage.removeItem('userInfo');
+    localStorage.removeItem('userInfo');
   };
 
   return (
