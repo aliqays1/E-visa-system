@@ -19,6 +19,14 @@ import {
   ArrowDownTrayIcon
 } from '@heroicons/react/24/outline';
 
+const getDocumentUrl = (pathOrUrl) => {
+  if (!pathOrUrl) return '#';
+  if (pathOrUrl.startsWith('http://') || pathOrUrl.startsWith('https://')) {
+    return pathOrUrl;
+  }
+  return `${import.meta.env.VITE_API_URL || ''}/uploads/${pathOrUrl.split(/[\\/]/).pop()}`;
+};
+
 const OfficerDashboard = () => {
   const { user, logout, loading: authLoading } = useContext(AuthContext);
   const [applications, setApplications] = useState([]);
@@ -660,7 +668,7 @@ const OfficerDashboard = () => {
                     <span className="text-gray-500 text-[11px] font-semibold block mb-2">Passport Scan</span>
                     {selectedApplication.passportDocument ? (
                       <a 
-                        href={`${import.meta.env.VITE_API_URL || ''}/uploads/${selectedApplication.passportDocument.split(/[\\/]/).pop()}`} 
+                        href={getDocumentUrl(selectedApplication.passportDocument)} 
                         target="_blank" 
                         rel="noreferrer" 
                         className="inline-flex items-center justify-center gap-1.5 text-blue-600 hover:text-blue-800 font-bold bg-blue-50/80 hover:bg-blue-100/80 px-3 py-1.5 rounded-lg border border-blue-100 transition-colors w-full"
@@ -673,7 +681,7 @@ const OfficerDashboard = () => {
                     <span className="text-gray-500 text-[11px] font-semibold block mb-2">Applicant Photo</span>
                     {selectedApplication.supportingDocuments && selectedApplication.supportingDocuments[0] ? (
                       <a 
-                        href={`${import.meta.env.VITE_API_URL || ''}/uploads/${selectedApplication.supportingDocuments[0].split(/[\\/]/).pop()}`} 
+                        href={getDocumentUrl(selectedApplication.supportingDocuments[0])} 
                         target="_blank" 
                         rel="noreferrer" 
                         className="inline-flex items-center justify-center gap-1.5 text-blue-600 hover:text-blue-800 font-bold bg-blue-50/80 hover:bg-blue-100/80 px-3 py-1.5 rounded-lg border border-blue-100 transition-colors w-full"
@@ -686,7 +694,7 @@ const OfficerDashboard = () => {
                     <span className="text-gray-500 text-[11px] font-semibold block mb-2">Bank Statement</span>
                     {selectedApplication.supportingDocuments && selectedApplication.supportingDocuments[1] ? (
                       <a 
-                        href={`${import.meta.env.VITE_API_URL || ''}/uploads/${selectedApplication.supportingDocuments[1].split(/[\\/]/).pop()}`} 
+                        href={getDocumentUrl(selectedApplication.supportingDocuments[1])} 
                         target="_blank" 
                         rel="noreferrer" 
                         className="inline-flex items-center justify-center gap-1.5 text-blue-600 hover:text-blue-800 font-bold bg-blue-50/80 hover:bg-blue-100/80 px-3 py-1.5 rounded-lg border border-blue-100 transition-colors w-full"

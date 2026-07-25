@@ -7,6 +7,29 @@ const { generateVisaPdf } = require('../utils/pdfGenerator');
 const emailTemplates = require('../utils/emailTemplates');
 const ActivityLog = require('../models/ActivityLog');
 const os = require('os');
+const path = require('path');
+const imagekit = require('../utils/imagekit');
+
+const uploadToImageKit = (file) => {
+  return new Promise((resolve, reject) => {
+    if (!file) return resolve(null);
+    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1e9);
+    const fileName = file.fieldname + '-' + uniqueSuffix + path.extname(file.originalname);
+    
+    imagekit.upload({
+      file: file.buffer,
+      fileName: fileName,
+      folder: '/evisa_uploads'
+    }, (error, result) => {
+      if (error) {
+        console.error('ImageKit upload error:', error);
+        reject(error);
+      } else {
+        resolve(result.url);
+      }
+    });
+  });
+};
 
 // Helper to get the local network IP address
 function getLocalIp() {
@@ -35,10 +58,16 @@ exports.applyVisa = async (req, res) => {
       visaDuration
     } = req.body;
 
-    // Retrieve file paths from multer uploads
-    const passportDocument = req.files && req.files.passportDocument ? req.files.passportDocument[0].filename : null;
-    const photoDocument = req.files && req.files.photoDocument ? req.files.photoDocument[0].filename : null;
-    const supportingDocument = req.files && req.files.supportingDocument ? req.files.supportingDocument[0].filename : null;
+    // Retrieve file paths from multer uploads and upload to ImageKit
+    const passportFile = req.files && req.files.passportDocument ? req.files.passportDocument[0] : null;
+    const photoFile = req.files && req.files.photoDocument ? req.files.photoDocument[0] : null;
+    const supportingFile = req.files && req.files.supportingDocument ? req.files.supportingDocument[0] : null;
+
+    const [passportDocument, photoDocument, supportingDocument] = await Promise.all([
+      uploadToImageKit(passportFile),
+      uploadToImageKit(photoFile),
+      uploadToImageKit(supportingFile)
+    ]);
 
     // Parse JSON details if sent as strings (via FormData)
     const parsedPersonalDetails = typeof personalDetails === 'string' ? JSON.parse(personalDetails) : personalDetails;
@@ -134,10 +163,18 @@ exports.updateApplication = async (req, res) => {
       visaDuration
     } = req.body;
 
-    // Retrieve file paths from multer uploads if any new files are provided
-    const passportDocument = req.files && req.files.passportDocument ? req.files.passportDocument[0].filename : application.passportDocument;
-    const photoDocument = req.files && req.files.photoDocument ? req.files.photoDocument[0].filename : application.supportingDocuments[0];
-    const supportingDocument = req.files && req.files.supportingDocument ? req.files.supportingDocument[0].filename : application.supportingDocuments[1];
+    // Retrieve file paths from multer uploads if any new files are provided and upload to ImageKit
+    const passportFile = req.files && req.files.passportDocument ? req.files.passportDocument[0] : null;
+    const photoFile = req.files && req.files.photoDocument ? req.files.photoDocument[0] : null;
+    const supportingFile = req.files && req.files.supportingDocument ? req.files.supportingDocument[0] : null;
+
+    let newPassport = passportFile ? await uploadToImageKit(passportFile) : null;
+    let newPhoto = photoFile ? await uploadToImageKit(photoFile) : null;
+    let newSupporting = supportingFile ? await uploadToImageKit(supportingFile) : null;
+
+    const passportDocument = newPassport || application.passportDocument;
+    const photoDocument = newPhoto || application.supportingDocuments[0];
+    const supportingDocument = newSupporting || application.supportingDocuments[1];
 
     // Parse JSON details if sent as strings (via FormData)
     const parsedPersonalDetails = typeof personalDetails === 'string' ? JSON.parse(personalDetails) : personalDetails;
