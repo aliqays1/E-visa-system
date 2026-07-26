@@ -55,28 +55,55 @@ const AuditorDashboard = () => {
 
   const handleDownloadPDF = () => {
     const doc = new jsPDF();
+    const pageWidth = doc.internal.pageSize.getWidth();
+    const centerX = pageWidth / 2;
     
+    // Branding Header
+    doc.setFontSize(9);
+    doc.setTextColor(0, 0, 0);
+    const now = new Date();
+    const formattedDate = now.toLocaleString('en-US', { year: '2-digit', month: 'numeric', day: 'numeric', hour: 'numeric', minute: '2-digit' });
+    doc.text(formattedDate, 14, 15);
+    doc.text("Somalia E-Visa Portal", centerX, 15, { align: 'center' });
+    
+    const badgeText = "Official Portal of the Federal Republic of Somalia — Immigration & Citizenship Service";
+    doc.setFontSize(10);
+    const textWidth = doc.getTextWidth(badgeText);
+    const badgeStartX = centerX - (textWidth / 2) - 8;
+    
+    doc.setFillColor(59, 130, 246); // blue-500
+    doc.roundedRect(badgeStartX, 22, 6, 6, 1, 1, 'F');
+    doc.setTextColor(255, 255, 255);
+    doc.text("*", badgeStartX + 3, 26.5, { align: 'center' }); 
+    
+    doc.setTextColor(107, 114, 128); // gray-500
+    doc.text(badgeText, badgeStartX + 8, 26.5);
+    
+    doc.setDrawColor(156, 163, 175); // gray-400
+    doc.setLineWidth(0.5);
+    doc.line(14, 32, pageWidth - 14, 32);
+
     // Header text
     doc.setFontSize(18);
     doc.setTextColor(17, 24, 39); // text-gray-900
-    doc.text("Visa Operations Report", 14, 22);
+    doc.text("Visa Operations Report", 14, 52);
     
     doc.setFontSize(10);
     doc.setTextColor(107, 114, 128); // text-gray-500
-    doc.text(`Generated on: ${new Date().toLocaleString()}`, 14, 30);
+    doc.text(`Generated on: ${new Date().toLocaleString()}`, 14, 60);
     
     // Filters info
     doc.setFontSize(10);
     doc.setTextColor(31, 41, 55); // text-gray-800
-    doc.text(`Period: ${reportMonth || 'All Time'}    Visa Status: ${reportStatus}    Payment Status: ${reportPayment}`, 14, 40);
+    doc.text(`Period: ${reportMonth || 'All Time'}    Visa Status: ${reportStatus}    Payment Status: ${reportPayment}`, 14, 70);
     
     // Summary info
     const totalRev = filteredReportApps.filter(a => a.paymentStatus === 'Completed').reduce((s, a) => s + (a.paymentDetails?.amountPaid || 100), 0).toLocaleString();
     doc.setFontSize(10);
     doc.setTextColor(79, 70, 229); // text-indigo-600
-    doc.text(`Total Records: ${filteredReportApps.length}`, 14, 50);
+    doc.text(`Total Records: ${filteredReportApps.length}`, 14, 80);
     doc.setTextColor(22, 163, 74); // text-green-600
-    doc.text(`Total Revenue: $${totalRev}`, 50, 50);
+    doc.text(`Total Revenue: $${totalRev}`, 50, 80);
     
     // Table
     const tableColumn = ["Applicant Name", "Passport", "Visa Type", "Submission Date", "Status", "Payment"];
@@ -94,7 +121,7 @@ const AuditorDashboard = () => {
     });
 
     autoTable(doc, {
-      startY: 55,
+      startY: 85,
       head: [tableColumn],
       body: tableRows,
       theme: 'grid',
