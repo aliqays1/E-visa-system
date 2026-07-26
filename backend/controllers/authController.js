@@ -87,6 +87,7 @@ exports.registerUser = async (req, res) => {
     await sendEmail({
       email,
       subject: 'Somalia E-Visa - Registration Verification Code',
+      text: `Hello ${fullName},\n\nThank you for registering with the Somalia E-Visa Portal. Please use the verification code below to complete your registration:\n\n${code}\n\nThis code will expire in 2 minutes. If you did not request this, please ignore this email.\n\nSomalia E-Visa Portal`,
       html: emailHtml
     });
 
@@ -263,6 +264,7 @@ exports.forgotPassword = async (req, res) => {
     await sendEmail({
       email,
       subject: 'Somalia E-Visa - Password Reset Code',
+      text: `Hello ${user.fullName},\n\nWe received a request to reset your password. Please use the verification code below to verify your identity:\n\n${code}\n\nThis code will expire in 2 minutes.\nIf you did not request a password reset, please ignore this email. Your password will not change.\n\nSomalia E-Visa Portal`,
       html: emailHtml
     });
 

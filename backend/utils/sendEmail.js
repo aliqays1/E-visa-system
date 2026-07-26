@@ -12,13 +12,43 @@ const sendEmail = async (options) => {
     },
   });
 
+  // Ensure HTML has proper DOCTYPE and html tags to prevent spam filters from rejecting raw divs
+  let formattedHtml = options.html || '';
+  if (formattedHtml && !formattedHtml.includes('<!DOCTYPE html>')) {
+    formattedHtml = `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>${options.subject || 'Somalia E-Visa Portal'}</title>
+</head>
+<body style="margin:0;padding:0;font-family:Arial,sans-serif;background-color:#ffffff;">
+  ${formattedHtml}
+</body>
+</html>`;
+  }
+
+  // Generate plain text version (crucial for spam filters)
+  let plainText = options.text;
+  if (!plainText && options.html) {
+    plainText = options.html
+      .replace(/<style[^>]*>.*<\/style>/gi, '') // Remove styles completely
+      .replace(/<br\s*[\/]?>/gi, '\n') // Replace breaks with newlines
+      .replace(/<\/p>/gi, '\n\n') // Replace paragraph ends with double newlines
+      .replace(/<\/h[1-6]>/gi, '\n\n') // Replace headers with newlines
+      .replace(/<[^>]+>/g, '') // Remove all other HTML tags
+      .replace(/&nbsp;/g, ' ')
+      .replace(/\n\s+\n/g, '\n\n')
+      .trim();
+  }
+
   const mailOptions = {
     from: process.env.EMAIL_USER ? `"Somalia E-Visa Portal" <${process.env.EMAIL_USER}>` : '"Somalia E-Visa Portal" <noreply@evisa.somalia>',
     to: options.email,
     replyTo: process.env.EMAIL_USER || 'noreply@evisa.somalia',
     subject: options.subject,
-    text: options.html ? options.html.replace(/<[^>]*>?/gm, '').replace(/&nbsp;/g, ' ').trim() : '',
-    html: options.html,
+    text: plainText,
+    html: formattedHtml,
   };
 
   if (!process.env.EMAIL_USER || !process.env.EMAIL_PASS) {

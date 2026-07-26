@@ -804,6 +804,7 @@ const ApplyVisa = () => {
                       <input 
                         type="file" 
                         accept="application/pdf,image/*"
+                        required={!formData.supportingDocName}
                         onChange={(e) => handleFileChange(e, 'supportingDocName')}
                         className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
                       />
