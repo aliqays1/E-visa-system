@@ -116,7 +116,16 @@ const ApplyVisa = () => {
 
   const handleNext = () => setStep(prev => Math.min(prev + 1, 7));
   const handleBack = () => setStep(prev => Math.max(prev - 1, 1));
-  const handleChange = (e) => setFormData(prev => ({ ...prev, [e.target.name]: e.target.value }));
+  const handleChange = (e) => {
+    let { name, value } = e.target;
+    if (name === 'cardExpiry') {
+      value = value.replace(/\D/g, '');
+      if (value.length > 2) {
+        value = value.substring(0, 2) + '/' + value.substring(2, 4);
+      }
+    }
+    setFormData(prev => ({ ...prev, [name]: value }));
+  };
 
   const handleFileChange = (e, fieldName) => {
     if (e.target.files && e.target.files[0]) {
