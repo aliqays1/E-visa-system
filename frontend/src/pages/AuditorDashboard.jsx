@@ -40,8 +40,11 @@ const AuditorDashboard = () => {
   const filteredReportApps = applications.filter(app => {
     let match = true;
     if (reportStatus !== 'All') {
-      if (reportStatus === 'Pending' && !['Submitted', 'Pending', 'Under Review', 'Needs Revision'].includes(app.applicationStatus)) match = false;
-      else if (reportStatus !== 'Pending' && app.applicationStatus !== reportStatus) match = false;
+      if (reportStatus === 'Pending' && !['Submitted', 'Pending', 'Under Review'].includes(app.applicationStatus)) match = false;
+      else if (reportStatus === 'Renewal' && app.applicationType !== 'Renewal') match = false;
+      else if (reportStatus === 'Active' && app.applicationStatus !== 'Active') match = false;
+      else if (reportStatus === 'Needs Revision' && app.applicationStatus !== 'Needs Revision') match = false;
+      else if (!['Pending', 'Renewal', 'Active', 'Needs Revision'].includes(reportStatus) && app.applicationStatus !== reportStatus) match = false;
     }
     if (reportPayment !== 'All') {
       if (app.paymentStatus !== reportPayment && !(reportPayment === 'Pending' && !app.paymentStatus)) match = false;
@@ -99,25 +102,38 @@ const AuditorDashboard = () => {
     
     // Summary info
     const totalRev = filteredReportApps.filter(a => a.paymentStatus === 'Completed').reduce((s, a) => s + (a.paymentDetails?.amountPaid || 100), 0).toLocaleString();
+    const totalRenewals = filteredReportApps.filter(a => a.applicationType === 'Renewal').length;
+    const totalActive = filteredReportApps.filter(a => a.applicationStatus === 'Active').length;
     doc.setFontSize(10);
     doc.setTextColor(79, 70, 229); // text-indigo-600
     doc.text(`Total Records: ${filteredReportApps.length}`, 14, 80);
     doc.setTextColor(22, 163, 74); // text-green-600
-    doc.text(`Total Revenue: $${totalRev}`, 50, 80);
+    doc.text(`Total Revenue: $${totalRev}`, 60, 80);
+    doc.setTextColor(124, 58, 237); // purple
+    doc.text(`Renewals: ${totalRenewals}`, 120, 80);
+    doc.setTextColor(5, 150, 105); // emerald
+    doc.text(`Active: ${totalActive}`, 165, 80);
     
     // Table
-    const tableColumn = ["Applicant Name", "Passport", "Visa Type", "Submission Date", "Status", "Payment"];
+    const tableColumn = ["Applicant Name", "Passport", "Visa Type", "Category", "Submission Date", "Status", "Payment"];
     const tableRows = [];
 
     filteredReportApps.forEach(app => {
-      const name = `${app.personalDetails?.firstName || ''} ${app.personalDetails?.lastName || ''}`;
+      const firstName = app.personalDetails?.firstName || '';
+      const lastName = app.personalDetails?.lastName || '';
+      const isRenewal = app.applicationType === 'Renewal';
+      const renewalCount = app.renewalCount || 0;
+      let nameSuffix = isRenewal ? ' [RENEWAL]' : (renewalCount > 0 ? ` [${renewalCount}x RENEWED]` : '');
+      const name = `${firstName} ${lastName}${nameSuffix}`;
       const passport = app.personalDetails?.passportNumber || '';
       const type = app.visaType || '';
+      const category = isRenewal ? 'Renewal' : 'New';
       const date = new Date(app.createdAt).toLocaleDateString();
-      const status = app.applicationStatus || '';
+      const rawStatus = app.applicationStatus || '';
+      const status = rawStatus === 'Submitted' ? 'Pending' : rawStatus;
       const payment = app.paymentStatus === 'Completed' ? `$${app.paymentDetails?.amountPaid || 100}` : (app.paymentStatus || 'Pending');
       
-      tableRows.push([name, passport, type, date, status, payment]);
+      tableRows.push([name, passport, type, category, date, status, payment]);
     });
 
     autoTable(doc, {
@@ -130,13 +146,19 @@ const AuditorDashboard = () => {
       didParseCell: function(data) {
         if (data.section === 'body') {
            // Color Status and Payment
-           if (data.column.index === 4) { // Status
+           if (data.column.index === 5) { // Status
              const val = data.cell.raw.toString().toUpperCase();
-             if (val === 'APPROVED') data.cell.styles.textColor = [22, 163, 74];
+             if (val === 'ACTIVE' || val === 'APPROVED') data.cell.styles.textColor = [5, 150, 105];
              else if (val === 'REJECTED') data.cell.styles.textColor = [220, 38, 38];
+             else if (val === 'NEEDS REVISION') data.cell.styles.textColor = [202, 138, 4];
              else data.cell.styles.textColor = [202, 138, 4];
            }
-           if (data.column.index === 5) { // Payment
+           if (data.column.index === 3) { // Category
+             const val = data.cell.raw.toString();
+             if (val === 'Renewal') data.cell.styles.textColor = [124, 58, 237];
+             else data.cell.styles.textColor = [37, 99, 235];
+           }
+           if (data.column.index === 6) { // Payment
              const val = data.cell.raw.toString().toUpperCase();
              if (val.startsWith('$')) data.cell.styles.textColor = [22, 163, 74];
              else data.cell.styles.textColor = [107, 114, 128];
@@ -473,18 +495,35 @@ const AuditorDashboard = () => {
                         {applications.map(app => (
                           <tr key={app._id} className="hover:bg-gray-50 transition-colors">
                             <td className="px-6 py-4">
-                              <div className="font-bold text-gray-900">{app.personalDetails?.firstName} {app.personalDetails?.lastName}</div>
+                              <div className="font-bold text-gray-900 capitalize">
+                                {app.personalDetails?.firstName} {app.personalDetails?.lastName}
+                                {app.applicationType === 'Renewal' && (
+                                  <span className="ml-2 px-2 py-0.5 text-[10px] bg-purple-600 text-white rounded-md font-extrabold uppercase tracking-wider shadow-sm">
+                                    RENEWAL
+                                  </span>
+                                )}
+                                {app.renewalCount > 0 && app.applicationType !== 'Renewal' && (
+                                  <span className="ml-2 px-2 py-0.5 text-[10px] bg-purple-100 text-purple-800 rounded font-extrabold uppercase tracking-wider">
+                                    {app.renewalCount} RENEWAL{app.renewalCount > 1 ? 'S' : ''}
+                                  </span>
+                                )}
+                              </div>
                               <div className="text-xs text-gray-400 font-mono mt-0.5">{app._id}</div>
                             </td>
                             <td className="px-6 py-4 text-gray-600 font-medium">{app.visaType}</td>
                             <td className="px-6 py-4 text-gray-500">{new Date(app.createdAt).toLocaleDateString()}</td>
                             <td className="px-6 py-4">
                               <span className={`px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider ${
-                                app.applicationStatus === 'Approved' ? 'bg-green-100 text-green-700 border border-green-200' :
+                                app.applicationStatus === 'Approved' ? 'bg-emerald-100 text-emerald-700 border border-emerald-200' :
+                                app.applicationStatus === 'Active' ? 'bg-emerald-100 text-emerald-800 border border-emerald-300' :
                                 app.applicationStatus === 'Rejected' ? 'bg-red-100 text-red-700 border border-red-200' :
+                                app.applicationStatus === 'Needs Revision' ? 'bg-amber-100 text-amber-700 border border-amber-200' :
+                                app.applicationStatus === 'Renewal Pending' ? 'bg-purple-100 text-purple-700 border border-purple-200' :
                                 'bg-yellow-100 text-yellow-700 border border-yellow-200'
                               }`}>
-                                {app.applicationStatus}
+                                {app.applicationStatus === 'Submitted' ? 'Pending' :
+                                 app.applicationStatus === 'Under Review' ? 'Updated Revision' :
+                                 app.applicationStatus}
                               </span>
                             </td>
                             <td className="px-6 py-4 text-right">
@@ -647,9 +686,12 @@ const AuditorDashboard = () => {
                         <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Visa Status</label>
                         <select value={reportStatus} onChange={(e) => setReportStatus(e.target.value)} className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500">
                            <option value="All">All Statuses</option>
+                           <option value="Active">Active</option>
                            <option value="Approved">Approved</option>
                            <option value="Rejected">Rejected</option>
+                           <option value="Renewal">Renewal (Pending)</option>
                            <option value="Pending">Pending / Submitted</option>
+                           <option value="Needs Revision">Needs Revision</option>
                         </select>
                      </div>
                      <div>
@@ -675,9 +717,11 @@ const AuditorDashboard = () => {
 
                   {/* Report Data Table */}
                   <div className="overflow-x-auto p-6">
-                    <div className="mb-4 flex space-x-6 text-sm print:mb-8">
+                    <div className="mb-4 flex flex-wrap gap-4 text-sm print:mb-8">
                        <div className="font-bold text-gray-700">Total Records: <span className="text-indigo-600">{filteredReportApps.length}</span></div>
                        <div className="font-bold text-gray-700">Total Revenue: <span className="text-green-600">${filteredReportApps.filter(a => a.paymentStatus === 'Completed').reduce((s, a) => s + (a.paymentDetails?.amountPaid || 100), 0).toLocaleString()}</span></div>
+                       <div className="font-bold text-gray-700">Renewals: <span className="text-purple-600">{filteredReportApps.filter(a => a.applicationType === 'Renewal').length}</span></div>
+                       <div className="font-bold text-gray-700">Active: <span className="text-emerald-600">{filteredReportApps.filter(a => a.applicationStatus === 'Active').length}</span></div>
                     </div>
                     <table className="w-full text-left border-collapse">
                       <thead>
@@ -685,6 +729,7 @@ const AuditorDashboard = () => {
                           <th className="px-4 py-3">Applicant Name</th>
                           <th className="px-4 py-3">Passport</th>
                           <th className="px-4 py-3">Visa Type</th>
+                          <th className="px-4 py-3">Category</th>
                           <th className="px-4 py-3">Submission Date</th>
                           <th className="px-4 py-3">Status</th>
                           <th className="px-4 py-3 text-right">Payment</th>
@@ -693,17 +738,37 @@ const AuditorDashboard = () => {
                       <tbody className="divide-y divide-gray-100 text-sm">
                         {filteredReportApps.length > 0 ? filteredReportApps.map(app => (
                           <tr key={app._id} className="hover:bg-gray-50 transition-colors break-inside-avoid">
-                            <td className="px-4 py-3 font-bold text-gray-900 capitalize">{app.personalDetails?.firstName} {app.personalDetails?.lastName}</td>
+                            <td className="px-4 py-3">
+                              <div className="font-bold text-gray-900 capitalize">
+                                {app.personalDetails?.firstName} {app.personalDetails?.lastName}
+                                {app.applicationType === 'Renewal' && (
+                                  <span className="ml-2 px-2 py-0.5 text-[9px] bg-purple-600 text-white rounded font-extrabold uppercase tracking-wider">RENEWAL</span>
+                                )}
+                                {app.renewalCount > 0 && app.applicationType !== 'Renewal' && (
+                                  <span className="ml-2 px-2 py-0.5 text-[9px] bg-purple-100 text-purple-800 rounded font-extrabold uppercase tracking-wider">{app.renewalCount}x RENEWED</span>
+                                )}
+                              </div>
+                            </td>
                             <td className="px-4 py-3 text-gray-500 font-mono text-xs">{app.personalDetails?.passportNumber}</td>
                             <td className="px-4 py-3 text-gray-600">{app.visaType}</td>
+                            <td className="px-4 py-3">
+                              <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider ${
+                                app.applicationType === 'Renewal' ? 'bg-purple-100 text-purple-700' : 'bg-blue-100 text-blue-700'
+                              }`}>
+                                {app.applicationType === 'Renewal' ? 'Renewal' : 'New'}
+                              </span>
+                            </td>
                             <td className="px-4 py-3 text-gray-500">{new Date(app.createdAt).toLocaleDateString()}</td>
                             <td className="px-4 py-3">
                               <span className={`px-2 py-1 rounded text-[11px] font-bold uppercase tracking-wider print:border print:border-gray-300 ${
-                                app.applicationStatus === 'Approved' ? 'bg-green-100 text-green-700' :
-                                app.applicationStatus === 'Rejected' ? 'bg-red-100 text-red-700' :
+                                app.applicationStatus === 'Active'    ? 'bg-emerald-100 text-emerald-800' :
+                                app.applicationStatus === 'Approved'  ? 'bg-emerald-100 text-emerald-700' :
+                                app.applicationStatus === 'Rejected'  ? 'bg-red-100 text-red-700' :
+                                app.applicationStatus === 'Needs Revision' ? 'bg-amber-100 text-amber-700' :
+                                app.applicationStatus === 'Renewal Pending' ? 'bg-purple-100 text-purple-700' :
                                 'bg-yellow-100 text-yellow-700'
                               }`}>
-                                {app.applicationStatus}
+                                {app.applicationStatus === 'Submitted' ? 'Pending' : app.applicationStatus}
                               </span>
                             </td>
                             <td className="px-4 py-3 text-right">
@@ -716,7 +781,7 @@ const AuditorDashboard = () => {
                           </tr>
                         )) : (
                            <tr>
-                             <td colSpan="6" className="px-4 py-8 text-center text-gray-500 italic">No applications match your filter criteria.</td>
+                             <td colSpan="7" className="px-4 py-8 text-center text-gray-500 italic">No applications match your filter criteria.</td>
                            </tr>
                         )}
                       </tbody>
