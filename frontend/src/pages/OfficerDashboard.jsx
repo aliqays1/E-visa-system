@@ -1375,14 +1375,14 @@ const OfficerDashboard = () => {
                           <span className="px-2.5 py-0.5 bg-emerald-100 text-emerald-800 font-semibold rounded-md text-[10px] uppercase tracking-wider">
                             Official Digital Visa
                           </span>
-                          {selectedApplication.applicationStatus === 'Approved' && (
+                          {['Approved', 'Active'].includes(selectedApplication.applicationStatus) && selectedApplication.pdfUrl && (
                             <a
-                              href={`${import.meta.env.VITE_API_URL || ''}/${(selectedApplication.pdfUrl || `uploads/pdfs/visa-${selectedApplication._id}.pdf`).replace(/\\/g, '/')}`}
+                              href={`${import.meta.env.VITE_API_URL || ''}/${(selectedApplication.pdfUrl).replace(/\\/g, '/')}`}
                               target="_blank"
                               rel="noreferrer"
-                              className="text-xs font-bold text-blue-600 hover:text-blue-800 hover:underline flex items-center gap-1"
+                              className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-[11px] font-bold rounded-lg transition-colors shadow-sm"
                             >
-                              <ArrowDownTrayIcon className="w-4 h-4 text-blue-600 inline" /> Download PDF
+                              <ArrowDownTrayIcon className="w-3.5 h-3.5" /> Download Official PDF
                             </a>
                           )}
                         </div>
