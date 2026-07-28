@@ -32,10 +32,10 @@ const authOptional = async (req, res, next) => {
 };
 
 const officerOnly = (req, res, next) => {
-  if (req.user && req.user.role === 'officer') {
+  if (req.user && (req.user.role === 'officer' || req.user.role === 'admin')) {
     next();
   } else {
-    res.status(403).json({ message: 'Not authorized as an officer' });
+    res.status(403).json({ message: 'Not authorized as an officer or admin' });
   }
 };
 const auditorOnly = (req, res, next) => {

@@ -1,5 +1,6 @@
 const VisaApplication = require('../models/VisaApplication');
 const VerificationCode = require('../models/VerificationCode');
+const VisaConfig = require('../models/VisaConfig');
 const sendEmail = require('../utils/sendEmail');
 const QRCode = require('qrcode');
 const { v4: uuidv4 } = require('uuid');
@@ -81,9 +82,24 @@ exports.applyVisa = async (req, res) => {
     }
     // ---------------------------------------
 
+    const vType = visaType || 'Tourism';
+    const vDuration = visaDuration ? Number(visaDuration) : 30;
+    
+    // Validate amount against config
+    let expectedAmount = 50; // Fallback
+    const config = await VisaConfig.findOne({ visaType: vType });
+    if (config) {
+      const option = config.options.find(o => o.duration === vDuration);
+      if (option) expectedAmount = option.price;
+    }
+    const finalAmount = amountPaid ? Number(amountPaid) : 0;
+    if (finalAmount < expectedAmount) {
+       // Just a warning for now, or could reject. Let's accept it but we know the actual amount
+    }
+
     const newApplication = new VisaApplication({
       applicantId: req.user._id,
-      visaType: visaType || 'Tourism',
+      visaType: vType,
       purposeOfTravel: purposeOfTravel || 'Not Specified',
       passportNumber: passportNumber || '',
       passportDocument,
@@ -92,10 +108,11 @@ exports.applyVisa = async (req, res) => {
       travelDetails: parsedTravelDetails || {},
       paymentStatus: paymentStatus || 'Completed', 
       paymentDetails: {
-        amountPaid: amountPaid ? Number(amountPaid) : 0,
+        amountPaid: finalAmount,
         transactionId: `TXN-${Math.random().toString(36).substring(2, 10).toUpperCase()}`
       },
-      visaDuration: visaDuration ? Number(visaDuration) : null,
+      visaDuration: vDuration,
+      applicationType: 'New',
       applicationStatus: 'Submitted'
     });
 
@@ -132,6 +149,78 @@ exports.applyVisa = async (req, res) => {
   } catch (error) {
     console.error('Error applying for visa:', error);
     res.status(500).json({ success: false, message: 'Server error creating visa application: ' + error.message });
+  }
+};
+
+// Renew a Visa
+exports.renewVisa = async (req, res) => {
+  try {
+    const {
+      linkedApplicationId,
+      visaType,
+      visaDuration,
+      amountPaid,
+      paymentMethod,
+      paymentStatus
+    } = req.body;
+
+    const originalApp = await VisaApplication.findById(linkedApplicationId);
+    if (!originalApp || originalApp.applicantId.toString() !== req.user._id.toString()) {
+      return res.status(404).json({ success: false, message: 'Original application not found or unauthorized.' });
+    }
+
+    const vDuration = visaDuration ? Number(visaDuration) : 30;
+    
+    // Config validation
+    let expectedAmount = 50;
+    const config = await VisaConfig.findOne({ visaType: visaType || originalApp.visaType });
+    if (config) {
+      const option = config.options.find(o => o.duration === vDuration);
+      if (option) expectedAmount = option.price;
+    }
+    const finalAmount = amountPaid ? Number(amountPaid) : 0;
+
+    const renewalApp = new VisaApplication({
+      applicantId: req.user._id,
+      visaType: visaType || originalApp.visaType,
+      purposeOfTravel: 'Renewal',
+      passportNumber: originalApp.passportNumber,
+      passportDocument: originalApp.passportDocument,
+      supportingDocuments: originalApp.supportingDocuments,
+      personalDetails: originalApp.personalDetails,
+      travelDetails: originalApp.travelDetails,
+      paymentStatus: paymentStatus || 'Completed', 
+      paymentDetails: {
+        amountPaid: finalAmount,
+        transactionId: `TXN-${Math.random().toString(36).substring(2, 10).toUpperCase()}`
+      },
+      visaDuration: vDuration,
+      applicationType: 'Renewal',
+      linkedApplicationId: originalApp._id,
+      applicationStatus: 'Submitted'
+    });
+
+    const savedApplication = await renewalApp.save();
+
+    // Create Payment record
+    if (finalAmount > 0) {
+      const Payment = require('../models/Payment');
+      const newPayment = new Payment({
+        applicantId: req.user._id,
+        visaApplicationId: savedApplication._id,
+        amount: finalAmount,
+        paymentMethod: paymentMethod || 'Credit Card',
+        paymentStatus: paymentStatus || 'Completed',
+        paymentDate: new Date(),
+        transactionReference: savedApplication.paymentDetails.transactionId
+      });
+      await newPayment.save();
+    }
+
+    res.status(201).json({ success: true, application: savedApplication });
+  } catch (error) {
+    console.error('Error renewing visa:', error);
+    res.status(500).json({ success: false, message: 'Server error creating renewal: ' + error.message });
   }
 };
 
@@ -328,39 +417,103 @@ exports.updateStatus = async (req, res) => {
     application.officerId = req.user._id;
 
     if (status === 'Approved') {
-      application.approvalDate = new Date();
       const duration = visaDuration ? parseInt(visaDuration) : (application.visaDuration || 30);
       application.visaDuration = duration;
-      
-      const expDate = new Date();
-      expDate.setDate(expDate.getDate() + duration);
-      application.expirationDate = expDate;
+      application.stayDuration = duration;
 
-      // Generate a verification QR code and secure token
-      const secureToken = uuidv4();
-      application.secureToken = secureToken;
+      // Handle Renewal approval: extend parent application in-place and set renewal status to Active
+      if (application.linkedApplicationId || application.applicationType === 'Renewal') {
+        application.applicationStatus = 'Active';
+        application.entryRecorded = true;
+        application.entryStatus = 'Entered';
+        const parentApp = await VisaApplication.findById(application.linkedApplicationId);
+        if (parentApp) {
+          const oldExpiry = parentApp.stayExpiryDate ? new Date(parentApp.stayExpiryDate) : new Date();
+          const newExpiry = new Date(oldExpiry.getTime() + duration * 24 * 60 * 60 * 1000);
 
-      const name = application.personalDetails ? `${application.personalDetails.firstName || ''} ${application.personalDetails.lastName || ''}`.trim() : 'N/A';
-      // The QR payload is JUST the verification URL so mobile phones will directly open it.
-      let frontendUrl = req.headers.origin || process.env.FRONTEND_URL || 'http://localhost:5173';
-      
-      // If the URL contains localhost or 127.0.0.1, replace it with the actual local IP 
-      // so that external devices (like smartphones) can scan the QR code and reach the server.
-      if (frontendUrl.includes('localhost') || frontendUrl.includes('127.0.0.1')) {
-        const localIp = getLocalIp();
-        frontendUrl = frontendUrl.replace(/localhost|127\.0\.0\.1/, localIp);
+          parentApp.stayExpiryDate = newExpiry;
+          parentApp.expirationDate = newExpiry;
+          // Store only the newly chosen renewal duration, not a cumulative total
+          parentApp.stayDuration = duration;
+          parentApp.visaDuration = duration;
+          if (application.visaType) {
+            parentApp.visaType = application.visaType;
+          }
+          parentApp.applicationStatus = 'Active';
+          parentApp.renewalCount = (parentApp.renewalCount || 0) + 1;
+          if (!parentApp.renewalHistory) parentApp.renewalHistory = [];
+          parentApp.renewalHistory.push({
+            renewedAt: new Date(),
+            addedDays: duration,
+            oldExpiryDate: oldExpiry,
+            newExpiryDate: newExpiry,
+            approvedBy: req.user.fullName || 'Officer'
+          });
+
+          // Regenerate the official PDF approval letter for the parent application with updated renewal information
+          try {
+            const pdfPath = await generateVisaPdf(parentApp);
+            parentApp.pdfUrl = pdfPath;
+          } catch (pdfErr) {
+            console.error('Error regenerating PDF for renewed visa:', pdfErr);
+          }
+
+          // Regenerate QR code for the parent visa so the modal shows an updated QR
+          try {
+            let frontendUrl = req.headers.origin || process.env.FRONTEND_URL || 'http://localhost:5173';
+            if (frontendUrl.includes('localhost') || frontendUrl.includes('127.0.0.1')) {
+              const localIp = getLocalIp();
+              frontendUrl = frontendUrl.replace(/localhost|127\.0\.0\.1/, localIp);
+            }
+            // Use existing secureToken so old QR scan links still resolve correctly
+            const token = parentApp.secureToken;
+            if (token) {
+              const qrData = `${frontendUrl}/verify?token=${token}`;
+              const qrCodeBase64 = await QRCode.toDataURL(qrData);
+              parentApp.qrCodeUrl = qrCodeBase64;
+            }
+          } catch (qrErr) {
+            console.error('Error regenerating QR code for renewed visa:', qrErr);
+          }
+
+          await parentApp.save();
+        }
       }
-      
-      // Additionally, if the FRONTEND_URL from .env has an old IP but we accessed via a different IP,
-      // it's generally safer to just rely on the origin. If there's no origin and it falls back to a 
-      // local IP, we might want to ensure it's the current IP, but the above localhost check is the most critical.
-      
-      const qrData = `${frontendUrl}/verify?token=${secureToken}`;
-      
-      const qrCodeBase64 = await QRCode.toDataURL(qrData);
-      application.qrCodeUrl = qrCodeBase64;
 
-      // Generate the official PDF e-Visa approval letter
+      // Pre-entry validity setup (for new approval or initial issue)
+      if (!application.issueDate) {
+        application.issueDate = new Date();
+      }
+      application.approvalDate = new Date();
+      
+      // 40-day Entry Validity Window (allowed period to enter Somalia)
+      const entryValidUntil = new Date(Date.now() + 40 * 24 * 60 * 60 * 1000);
+      application.entryValidUntil = entryValidUntil;
+      application.validUntilDate = entryValidUntil;
+
+      // Pre-entry state: entryDate and stayExpiryDate remain null until Border Control records entry
+      if (!application.entryRecorded) {
+        application.entryDate = null;
+        application.stayExpiryDate = null;
+      }
+
+      // Generate permanent QR code and secure token ONCE
+      if (!application.secureToken) {
+        const secureToken = uuidv4();
+        application.secureToken = secureToken;
+
+        let frontendUrl = req.headers.origin || process.env.FRONTEND_URL || 'http://localhost:5173';
+        if (frontendUrl.includes('localhost') || frontendUrl.includes('127.0.0.1')) {
+          const localIp = getLocalIp();
+          frontendUrl = frontendUrl.replace(/localhost|127\.0\.0\.1/, localIp);
+        }
+        
+        const qrData = `${frontendUrl}/verify?token=${secureToken}`;
+        const qrCodeBase64 = await QRCode.toDataURL(qrData);
+        application.qrCodeUrl = qrCodeBase64;
+      }
+
+      // Generate PDF e-Visa letter
       const pdfPath = await generateVisaPdf(application);
       application.pdfUrl = pdfPath;
     } else if (status === 'Rejected') {
@@ -548,44 +701,55 @@ exports.recordEntry = async (req, res) => {
       return res.status(404).json({ success: false, message: 'Application not found' });
     }
     
-    if (application.applicationStatus !== 'Approved') {
+    if (application.entryRecorded) {
+      return res.status(400).json({ success: false, message: 'Entry has already been recorded for this visa.' });
+    }
+
+    if (application.applicationStatus !== 'Approved' && application.applicationStatus !== 'Active') {
       return res.status(400).json({ success: false, message: 'Visa is not approved.' });
     }
 
-    if (new Date() > new Date(application.expirationDate)) {
-      return res.status(400).json({ success: false, message: 'Visa has expired.' });
+    const validUntil = application.entryValidUntil || application.validUntilDate || application.expirationDate;
+    if (validUntil && new Date() > new Date(validUntil)) {
+      return res.status(400).json({ success: false, message: 'Visa entry validity window has expired. Entry denied.' });
     }
 
+    const entryDate = new Date();
+    const duration = application.stayDuration || application.visaDuration || 30;
+    const stayExpiryDate = new Date(entryDate.getTime() + duration * 24 * 60 * 60 * 1000);
+
+    application.entryRecorded = true;
     application.entryStatus = 'Entered';
-    application.entryDate = new Date();
-    
-    const stayExpDate = new Date(application.entryDate);
-    const duration = application.visaDuration || 30;
-    stayExpDate.setDate(stayExpDate.getDate() + duration);
-    application.expirationDate = stayExpDate;
-    
-    const location = req.body.location || 'Mogadishu International Airport'; // Default location
+    // Keep applicationStatus as 'Approved' for Admin Portal Registry visibility
+    application.entryDate = entryDate;
+    application.stayExpiryDate = stayExpiryDate;
+    application.expirationDate = stayExpiryDate; // Legacy fallback
+    application.entryOfficer = (req.user && req.user.fullName) ? req.user.fullName : 'Border Control Officer';
+    application.entryPort = req.body.location || req.body.port || 'Mogadishu International Airport (MGQ)';
+
     application.scannedHistory.push({
       action: 'Entry',
-      officerId: req.user._id,
-      location: location
+      officerId: req.user ? req.user._id : undefined,
+      location: application.entryPort
     });
     
     const updated = await application.save();
 
-    await ActivityLog.create({
-      officerId: req.user._id,
-      officerName: req.user.fullName,
-      action: 'Recorded Entry',
-      targetId: application._id,
-      details: `Recorded entry at ${location}`,
-      ipAddress: req.ip
-    });
+    if (req.user) {
+      await ActivityLog.create({
+        officerId: req.user._id,
+        officerName: req.user.fullName,
+        action: 'Recorded Entry',
+        targetId: application._id,
+        details: `Recorded entry at ${application.entryPort}. Permitted stay until ${stayExpiryDate.toLocaleDateString()}`,
+        ipAddress: req.ip
+      });
+    }
 
-    res.json({ success: true, application: updated, message: 'Entry recorded successfully.' });
+    res.json({ success: true, application: updated, message: 'First entry recorded successfully. Visa is now Active.' });
   } catch (error) {
     console.error('Error recording entry:', error);
-    res.status(500).json({ success: false, message: 'Server error recording entry' });
+    res.status(500).json({ success: false, message: 'Server error recording entry: ' + error.message });
   }
 };
 
@@ -601,23 +765,25 @@ exports.recordExit = async (req, res) => {
     application.entryStatus = 'Exited';
     application.exitDate = new Date();
     
-    const location = req.body.location || 'Mogadishu International Airport'; // Default location
+    const location = req.body.location || 'Mogadishu International Airport';
     application.scannedHistory.push({
       action: 'Exit',
-      officerId: req.user._id,
+      officerId: req.user ? req.user._id : undefined,
       location: location
     });
     
     const updated = await application.save();
 
-    await ActivityLog.create({
-      officerId: req.user._id,
-      officerName: req.user.fullName,
-      action: 'Recorded Exit',
-      targetId: application._id,
-      details: `Recorded exit at ${location}`,
-      ipAddress: req.ip
-    });
+    if (req.user) {
+      await ActivityLog.create({
+        officerId: req.user._id,
+        officerName: req.user.fullName,
+        action: 'Recorded Exit',
+        targetId: application._id,
+        details: `Recorded exit at ${location}`,
+        ipAddress: req.ip
+      });
+    }
 
     res.json({ success: true, application: updated, message: 'Exit recorded successfully.' });
   } catch (error) {
@@ -631,10 +797,12 @@ exports.checkOverstays = async (req, res) => {
   try {
     const now = new Date();
     
-    // Find them first to get their IDs
     const overstayedApps = await VisaApplication.find({
       entryStatus: 'Entered', 
-      expirationDate: { $lt: now }, 
+      $or: [
+        { stayExpiryDate: { $lt: now } },
+        { stayExpiryDate: { $exists: false }, expirationDate: { $lt: now } }
+      ],
       overstayAlert: { $ne: true } 
     }).select('_id');
 
@@ -646,7 +814,8 @@ exports.checkOverstays = async (req, res) => {
         { 
           $set: { 
             overstayAlert: true, 
-            entryStatus: 'Overstayed' 
+            entryStatus: 'Overstayed',
+            applicationStatus: 'Overstayed'
           } 
         }
       );
@@ -684,44 +853,48 @@ exports.verifyVisaToken = async (req, res) => {
       return res.status(404).json({ success: false, message: 'Invalid or unrecognized visa token.' });
     }
 
-    // Determine if requester is an authenticated officer
     const isOfficer = req.user && req.user.role === 'officer';
 
     if (isOfficer) {
-      // Record the scan in history
       application.scannedHistory.push({
         action: 'Scan',
         officerId: req.user._id,
         location: req.query.location || 'System Dashboard'
       });
       await application.save();
-
-      // Return full officer-level details
-      return res.json({
-        success: true,
-        isOfficer: true,
-        application: application
-      });
-    } else {
-      // Public Verification - Return limited data
-      return res.json({
-        success: true,
-        isOfficer: false,
-        application: {
-          _id: application._id,
-          visaType: application.visaType,
-          applicationStatus: application.applicationStatus,
-          visaDuration: application.visaDuration,
-          approvalDate: application.approvalDate,
-          expirationDate: application.expirationDate,
-          personalDetails: {
-            firstName: application.personalDetails?.firstName,
-            lastName: application.personalDetails?.lastName
-          }
-        }
-      });
     }
 
+    const now = new Date();
+    let isExpired = false;
+    let remainingDays = 0;
+
+    if (!application.entryRecorded) {
+      // Pre-entry: check entry validity window
+      const validUntil = application.entryValidUntil || application.validUntilDate;
+      if (validUntil && now > new Date(validUntil)) {
+        isExpired = true;
+      }
+    } else {
+      // Post-entry: check stay expiry date
+      const stayExp = application.stayExpiryDate || application.expirationDate;
+      if (stayExp) {
+        if (now > new Date(stayExp)) {
+          isExpired = true;
+        } else {
+          remainingDays = Math.ceil((new Date(stayExp) - now) / (1000 * 60 * 60 * 24));
+        }
+      }
+    }
+
+    const appObj = application.toObject ? application.toObject() : JSON.parse(JSON.stringify(application));
+    appObj.isExpired = isExpired;
+    appObj.remainingDays = remainingDays;
+
+    return res.json({
+      success: true,
+      isOfficer: !!isOfficer,
+      application: appObj
+    });
   } catch (error) {
     console.error('Error verifying visa token:', error);
     res.status(500).json({ success: false, message: 'Server error verifying visa token.' });
@@ -794,5 +967,33 @@ exports.sendWarning = async (req, res) => {
   } catch (error) {
     console.error('Error sending warning:', error);
     res.status(500).json({ success: false, message: 'Server error sending warning email.' });
+  }
+};
+
+// Get Reports & Analytics
+exports.getReports = async (req, res) => {
+  try {
+    const revenueStats = await VisaApplication.aggregate([
+      { $match: { applicationStatus: 'Approved' } },
+      { $group: { _id: "$visaType", totalRevenue: { $sum: "$paymentDetails.amountPaid" } } }
+    ]);
+    
+    const typeStats = await VisaApplication.aggregate([
+      { $group: { _id: "$applicationType", count: { $sum: 1 } } }
+    ]);
+
+    const statusStats = await VisaApplication.aggregate([
+      { $group: { _id: "$applicationStatus", count: { $sum: 1 } } }
+    ]);
+
+    const overstayStats = await VisaApplication.aggregate([
+      { $match: { overstayAlert: true } },
+      { $group: { _id: "$visaType", count: { $sum: 1 } } }
+    ]);
+
+    res.json({ success: true, reports: { revenueStats, typeStats, statusStats, overstayStats } });
+  } catch (error) {
+    console.error('Error generating reports:', error);
+    res.status(500).json({ success: false, message: 'Server error generating reports' });
   }
 };

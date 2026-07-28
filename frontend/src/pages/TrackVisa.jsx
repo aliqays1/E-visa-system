@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import axios from 'axios';
 import { Link } from 'react-router-dom';
 import OtpInput from '../components/OtpInput';
-import { GlobeAltIcon, MagnifyingGlassIcon, ExclamationTriangleIcon, CheckCircleIcon, EnvelopeIcon } from '@heroicons/react/24/outline';
+import { GlobeAltIcon, MagnifyingGlassIcon, ExclamationTriangleIcon, CheckCircleIcon, EnvelopeIcon, ArrowDownTrayIcon } from '@heroicons/react/24/outline';
 
 const TrackVisa = () => {
   const [referenceId, setReferenceId] = useState('');
@@ -97,10 +97,11 @@ const TrackVisa = () => {
   };
 
   const renderApprovedStatus = () => {
-    if (!visaData.expirationDate) return null;
+    const expiryTarget = visaData.stayExpiryDate || visaData.expirationDate || visaData.entryValidUntil;
+    if (!expiryTarget) return null;
 
     const today = new Date();
-    const expiry = new Date(visaData.expirationDate);
+    const expiry = new Date(expiryTarget);
     const diffTime = expiry - today;
     const daysLeft = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
     
@@ -145,13 +146,14 @@ const TrackVisa = () => {
 
         {/* Action Buttons */}
         <div className="mt-8 flex gap-4">
-          {visaData.applicationStatus === 'Approved' && !isOverstay && (
+          {['Approved', 'Active'].includes(visaData.applicationStatus) && !isOverstay && (
             <a 
               href={`${import.meta.env.VITE_API_URL || ''}/${(visaData.pdfUrl || `uploads/pdfs/visa-${visaData._id}.pdf`).replace(/\\/g, '/')}`}
               target="_blank"
               rel="noreferrer"
-              className="flex-grow bg-primary hover:bg-blue-700 text-white font-bold py-4 rounded-xl text-center shadow-lg shadow-blue-500/30 transition-all text-center flex items-center justify-center"
+              className="flex-grow bg-primary hover:bg-blue-700 text-white font-bold py-4 rounded-xl text-center shadow-lg shadow-blue-500/30 transition-all text-center flex items-center justify-center gap-2"
             >
+              <ArrowDownTrayIcon className="w-5 h-5" />
               Download Official e-Visa PDF
             </a>
           )}
@@ -343,13 +345,13 @@ const TrackVisa = () => {
                       visaData.applicationStatus === 'Rejected' ? 'bg-red-100 text-red-700' :
                       'bg-yellow-100 text-yellow-700'
                     }`}>
-                      {visaData.applicationStatus}
+                      {visaData.applicationStatus === 'Submitted' ? 'Pending' : visaData.applicationStatus}
                     </span>
                   </div>
                 </div>
 
                 {/* Conditional Dynamic Rendering based on Status */}
-                {visaData.applicationStatus === 'Approved' && renderApprovedStatus()}
+                {['Approved', 'Active'].includes(visaData.applicationStatus) && renderApprovedStatus()}
                 
                 {visaData.applicationStatus === 'Rejected' && (
                   <div className="mt-6 bg-red-50 border border-red-100 p-6 rounded-2xl">

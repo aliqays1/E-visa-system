@@ -17,7 +17,8 @@ const generateOTP = () => {
 
 exports.registerUser = async (req, res) => {
   try {
-    const { fullName, email, password, role, phone, nationality } = req.body;
+    const { fullName, email: rawEmail, password, role, phone, nationality } = req.body;
+    const email = rawEmail ? rawEmail.toLowerCase().trim() : '';
 
     const userExists = await User.findOne({ email });
     if (userExists) {
@@ -145,7 +146,8 @@ exports.verifyRegisterOtp = async (req, res) => {
 
 exports.loginUser = async (req, res) => {
   try {
-    const { email, password } = req.body;
+    const { email: rawEmail, password } = req.body;
+    const email = rawEmail ? rawEmail.toLowerCase().trim() : '';
     const user = await User.findOne({ email });
     const isProduction = req.hostname.includes('onrender.com') || 
                          process.env.NODE_ENV === 'production' || 

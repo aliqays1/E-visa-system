@@ -2,6 +2,7 @@ import React, { useContext, useState, useEffect } from 'react';
 import { AuthContext } from '../context/AuthContext';
 import { Navigate, Link, useNavigate } from 'react-router-dom';
 import axios from 'axios';
+import { ArrowDownTrayIcon } from '@heroicons/react/24/outline';
 
 const ApplicantDashboard = () => {
   const { user, logout, loading: authLoading } = useContext(AuthContext);
@@ -76,7 +77,7 @@ const ApplicantDashboard = () => {
       formDataToSend.append('travelDetails', JSON.stringify({
         arrivalDate: pendingVisa.arrivalDate,
         departureDate: pendingVisa.departureDate,
-        hostAddress: pendingVisa.hostAddress,
+        hostAddress: pendingVisa.hostAddress || pendingVisa.address || '',
         phone: pendingVisa.phone
       }));
 
@@ -128,10 +129,14 @@ const ApplicantDashboard = () => {
     }
   };
 
-  // Compute KPI counts dynamically
-  const totalApps = applications.length;
-  const pendingApps = applications.filter(app => app.applicationStatus === 'Submitted' || app.applicationStatus === 'Under Review').length;
-  const approvedApps = applications.filter(app => app.applicationStatus === 'Approved').length;
+  // Filter out renewal sub-applications — they are intermediate forms only.
+  // The parent visa row already reflects any approved renewal (extended stayExpiryDate).
+  const visibleApplications = applications.filter(app => app.applicationType !== 'Renewal');
+
+  // Compute KPI counts dynamically (based on visible apps only)
+  const totalApps = visibleApplications.length;
+  const pendingApps = visibleApplications.filter(app => app.applicationStatus === 'Submitted' || app.applicationStatus === 'Under Review').length;
+  const approvedApps = visibleApplications.filter(app => app.applicationStatus === 'Approved').length;
 
   return (
     <div className="min-h-screen bg-slate-100 pb-20">
@@ -200,7 +205,7 @@ const ApplicantDashboard = () => {
 
           {loading ? (
             <div className="text-center py-16 text-slate-400">Loading visa applications...</div>
-          ) : applications.length > 0 ? (
+          ) : visibleApplications.length > 0 ? (
             <div className="overflow-x-auto bg-slate-800">
               <table className="w-full text-left border-collapse">
                 <thead>
@@ -214,7 +219,7 @@ const ApplicantDashboard = () => {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-700/50 text-sm">
-                  {applications.map((app) => (
+                  {visibleApplications.map((app) => (
                     <tr key={app._id} className="hover:bg-slate-700/30 transition-colors">
                       <td className="p-4 pl-6 font-semibold text-slate-100">{app.visaType} Visa</td>
                       <td className="p-4 font-mono text-xs text-slate-400">{app._id}</td>
@@ -228,43 +233,74 @@ const ApplicantDashboard = () => {
                       </td>
                       <td className="p-4">
                         <span className={`whitespace-nowrap px-3 py-1 rounded-full text-xs font-bold uppercase border ${
-                          app.applicationStatus === 'Approved' ? 'bg-emerald-900/30 text-emerald-400 border-emerald-800/50' :
+                          ['Approved', 'Active'].includes(app.applicationStatus) ? 'bg-emerald-900/30 text-emerald-400 border-emerald-800/50' :
                           app.applicationStatus === 'Rejected' ? 'bg-rose-900/30 text-rose-400 border-rose-800/50' :
                           'bg-amber-900/30 text-amber-400 border-amber-800/50'
                         }`}>
-                          {app.applicationStatus}
+                          {app.applicationStatus === 'Submitted' ? 'Pending' : app.applicationStatus}
                         </span>
                       </td>
                       <td className="p-4 text-right pr-6">
-                        {app.applicationStatus === 'Approved' && (
-                          <button 
-                            onClick={() => setSelectedVisa(app)}
-                            className="text-xs px-3.5 py-1.5 bg-emerald-600 text-white hover:bg-emerald-500 font-bold rounded-lg transition-colors shadow-sm"
-                          >
-                            View e-Visa
-                          </button>
-                        )}
-                        {app.applicationStatus === 'Rejected' && (
-                          <span className="text-xs text-rose-400 font-medium bg-rose-900/20 border border-rose-800/30 px-3 py-1.5 rounded-lg inline-block max-w-[200px] truncate" title={app.rejectionReason || 'Requirements not met.'}>
-                            {app.rejectionReason || 'Requirements not met.'}
-                          </span>
-                        )}
-                        {app.applicationStatus === 'Needs Revision' && (
-                          <div className="flex flex-col items-end gap-1.5">
-                            <span className="text-xs text-red-500 font-bold bg-red-900/20 border border-red-800/30 px-3 py-1.5 rounded-lg inline-block max-w-sm whitespace-normal break-words text-right" title={app.rejectionReason || 'Additional information required.'}>
-                              {app.rejectionReason || 'Additional information required.'}
-                            </span>
-                            <button
-                              onClick={() => window.location.href = `/apply?edit=true&id=${app._id}`}
-                              className="text-[10px] uppercase tracking-wider px-4 py-1.5 bg-gradient-to-r from-amber-500 to-orange-500 text-white hover:from-amber-600 hover:to-orange-600 font-extrabold rounded-lg transition-all transform hover:-translate-y-0.5 shadow-md hover:shadow-lg"
-                            >
-                              Edit Application
-                            </button>
-                          </div>
-                        )}
-                        {(app.applicationStatus === 'Submitted' || app.applicationStatus === 'Under Review') && (
-                          <span className="text-xs text-gray-400 font-medium italic">Processing</span>
-                        )}
+                        {(() => {
+                          const isApprovedOrActive = ['Approved', 'Active'].includes(app.applicationStatus);
+
+                          if (isApprovedOrActive) {
+                            const hasPendingRenewal = applications.some(a => 
+                              a.applicationType === 'Renewal' &&
+                              (a.linkedApplicationId === app._id || a.linkedApplicationId?._id === app._id) &&
+                              ['Submitted', 'Under Review', 'Pending', 'In Progress', 'Renewal Pending'].includes(a.applicationStatus)
+                            );
+
+                            return (
+                              <div className="flex flex-col items-end gap-1.5">
+                                <button 
+                                  onClick={() => setSelectedVisa(app)}
+                                  className="text-xs px-3.5 py-1.5 bg-emerald-600 text-white hover:bg-emerald-500 font-bold rounded-lg transition-colors shadow-sm"
+                                >
+                                  View e-Visa
+                                </button>
+                                {hasPendingRenewal ? (
+                                  <span className="text-[11px] px-3 py-1 bg-amber-900/40 text-amber-300 border border-amber-700/50 font-bold rounded-lg italic">
+                                    Renewal Processing
+                                  </span>
+                                ) : (
+                                  <button 
+                                    onClick={() => window.location.href = `/apply?renew=true&id=${app._id}`}
+                                    className="text-[10px] uppercase tracking-wider px-3.5 py-1.5 bg-blue-600 text-white hover:bg-blue-500 font-extrabold rounded-lg transition-all shadow-sm"
+                                  >
+                                    Renew Visa
+                                  </button>
+                                )}
+                              </div>
+                            );
+                          }
+
+                          if (app.applicationStatus === 'Rejected') {
+                            return (
+                              <span className="text-xs text-rose-400 font-medium bg-rose-900/20 border border-rose-800/30 px-3 py-1.5 rounded-lg inline-block max-w-[200px] truncate" title={app.rejectionReason || 'Requirements not met.'}>
+                                {app.rejectionReason || 'Requirements not met.'}
+                              </span>
+                            );
+                          }
+
+                          if (app.applicationStatus === 'Needs Revision') {
+                            return (
+                              <div className="flex flex-col items-end gap-1.5">
+                                <span className="text-xs text-red-500 font-bold bg-red-900/20 border border-red-800/30 px-3 py-1.5 rounded-lg inline-block max-w-sm whitespace-normal break-words text-right" title={app.rejectionReason || 'Additional information required.'}>
+                                  {app.rejectionReason || 'Additional information required.'}
+                                </span>
+                                <button
+                                  onClick={() => window.location.href = `/apply?edit=true&id=${app._id}`}
+                                  className="text-[10px] uppercase tracking-wider px-4 py-1.5 bg-gradient-to-r from-amber-500 to-orange-500 text-white hover:from-amber-600 hover:to-orange-600 font-extrabold rounded-lg transition-all transform hover:-translate-y-0.5 shadow-md hover:shadow-lg"
+                                >
+                                  Edit Application
+                                </button>
+                              </div>
+                            );
+                          }
+
+                          return <span className="text-xs text-gray-400 font-medium italic">Processing</span>;
+                        })()}
                       </td>
                     </tr>
                   ))}
@@ -324,21 +360,36 @@ const ApplicantDashboard = () => {
                 <div>
                   <span className="text-gray-400 font-medium uppercase block">Duration of Stay</span>
                   <span className="text-sm font-bold text-gray-800">
-                    {selectedVisa.visaDuration} Days
+                    {selectedVisa.renewalHistory && selectedVisa.renewalHistory.length > 0
+                      ? selectedVisa.renewalHistory[selectedVisa.renewalHistory.length - 1].addedDays
+                      : (selectedVisa.stayDuration || selectedVisa.visaDuration || 30)} Days
+                    {selectedVisa.renewalCount > 0 && (
+                      <span className="ml-2 text-[10px] bg-purple-100 text-purple-800 px-2 py-0.5 rounded font-extrabold">
+                        {selectedVisa.renewalCount} RENEWAL{selectedVisa.renewalCount > 1 ? 'S' : ''}
+                      </span>
+                    )}
                   </span>
                 </div>
                 <div>
-                  <span className="text-gray-400 font-medium uppercase block">Approval Date</span>
+                  <span className="text-gray-400 font-medium uppercase block">Issue Date</span>
                   <span className="text-sm font-bold text-gray-800">
-                    {selectedVisa.approvalDate ? new Date(selectedVisa.approvalDate).toLocaleDateString() : 'N/A'}
+                    {selectedVisa.issueDate ? new Date(selectedVisa.issueDate).toLocaleDateString() : (selectedVisa.approvalDate ? new Date(selectedVisa.approvalDate).toLocaleDateString() : 'N/A')}
                   </span>
                 </div>
                 <div>
-                  <span className="text-gray-400 font-medium uppercase block">Expiry Date</span>
-                  <span className="text-sm font-bold text-green-600 font-bold">
-                    {selectedVisa.expirationDate ? new Date(selectedVisa.expirationDate).toLocaleDateString() : 'N/A'}
+                  <span className="text-gray-400 font-medium uppercase block">Entry Valid Until</span>
+                  <span className="text-sm font-bold text-gray-800">
+                    {selectedVisa.entryValidUntil ? new Date(selectedVisa.entryValidUntil).toLocaleDateString() : (selectedVisa.validUntilDate ? new Date(selectedVisa.validUntilDate).toLocaleDateString() : 'N/A')}
                   </span>
                 </div>
+                {(selectedVisa.entryRecorded || selectedVisa.entryStatus === 'Entered' || selectedVisa.stayExpiryDate) && (
+                  <div>
+                    <span className="text-gray-400 font-medium uppercase block">Stay Expiry</span>
+                    <span className="text-sm font-bold text-emerald-600">
+                      {selectedVisa.stayExpiryDate ? new Date(selectedVisa.stayExpiryDate).toLocaleDateString() : (selectedVisa.expirationDate ? new Date(selectedVisa.expirationDate).toLocaleDateString() : 'N/A')}
+                    </span>
+                  </div>
+                )}
               </div>
 
               {/* QR Verification */}
@@ -354,13 +405,14 @@ const ApplicantDashboard = () => {
             <div className="bg-gray-50 px-6 py-4 flex flex-col sm:flex-row gap-3 justify-between items-center border-t border-gray-100">
               <span className="text-[10px] text-gray-400 font-mono">Ref: {selectedVisa._id}</span>
               <div className="flex gap-2">
-                {selectedVisa.applicationStatus === 'Approved' && (
+                {['Approved', 'Active'].includes(selectedVisa.applicationStatus) && (
                   <a 
                     href={`${import.meta.env.VITE_API_URL || ''}/${(selectedVisa.pdfUrl || `uploads/pdfs/visa-${selectedVisa._id}.pdf`).replace(/\\/g, '/')}`}
                     target="_blank"
                     rel="noreferrer"
-                    className="text-xs px-4 py-2 bg-green-700 text-white font-bold rounded-lg hover:bg-green-800 flex items-center transition-colors"
+                    className="text-xs px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-lg flex items-center gap-1.5 transition-colors shadow-sm"
                   >
+                    <ArrowDownTrayIcon className="w-4 h-4" />
                     Download Official PDF
                   </a>
                 )}

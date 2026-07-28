@@ -15,7 +15,10 @@ const activityLogSchema = new mongoose.Schema({
       'Recorded Entry', 
       'Recorded Exit',
       'Ran Overstay Check',
-      'Sent Overstay Warning'
+      'Sent Overstay Warning',
+      'Updated Visa Config',
+      'Deleted Visa Config',
+      'Renamed Visa Config'
     ]
   },
   targetId: { type: mongoose.Schema.Types.ObjectId, ref: 'VisaApplication' },

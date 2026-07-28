@@ -1,9 +1,165 @@
-import React, { useState, useContext, useEffect } from 'react';
+import React, { useState, useContext, useEffect, useRef } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { AuthContext } from '../context/AuthContext';
-import { IdentificationIcon, CameraIcon, PaperAirplaneIcon, CreditCardIcon, CheckCircleIcon } from '@heroicons/react/24/outline';
+import { IdentificationIcon, CameraIcon, PaperAirplaneIcon, CreditCardIcon, CheckCircleIcon, ChevronDownIcon, CheckIcon } from '@heroicons/react/24/outline';
 import axios from 'axios';
 import CountryAutocomplete from '../components/CountryAutocomplete';
+
+// ─── Custom Premium Dropdown ──────────────────────────────────────────────────
+const CustomSelect = ({ name, value, onChange, options, placeholder = 'Select an option', required, disabled }) => {
+  const [open, setOpen] = useState(false);
+  const ref = useRef(null);
+
+  useEffect(() => {
+    const handler = (e) => { if (ref.current && !ref.current.contains(e.target)) setOpen(false); };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, []);
+
+  const selected = options.find(o => String(o.value) === String(value));
+
+  const handleSelect = (optValue) => {
+    onChange({ target: { name, value: optValue } });
+    setOpen(false);
+  };
+
+  return (
+    <div ref={ref} className="relative">
+      {/* Trigger Button */}
+      <button
+        type="button"
+        disabled={disabled}
+        onClick={() => !disabled && setOpen(o => !o)}
+        className={`
+          w-full flex items-center justify-between gap-3 px-4 py-3.5 rounded-xl border-2 transition-all duration-200 text-left
+          ${open
+            ? 'border-primary bg-white shadow-lg shadow-primary/10 ring-2 ring-primary/20'
+            : value
+              ? 'border-gray-200 bg-white hover:border-primary/50 hover:shadow-sm'
+              : 'border-gray-200 bg-gray-50/60 hover:border-primary/40 hover:bg-white'
+          }
+          ${disabled ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}
+        `}
+      >
+        <div className="flex items-center gap-3 min-w-0">
+          {selected?.icon && (
+            <span className={`w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 transition-all ${
+              open || value ? 'bg-primary text-white shadow-sm shadow-primary/30' : 'bg-gray-100 text-gray-500'
+            }`}>
+              {selected.icon}
+            </span>
+          )}
+          <span className={`font-semibold text-sm truncate ${selected ? 'text-gray-900' : 'text-gray-400'}`}>
+            {selected ? selected.label : placeholder}
+          </span>
+        </div>
+        <ChevronDownIcon className={`w-4 h-4 flex-shrink-0 transition-transform duration-300 ${
+          open ? 'rotate-180 text-primary' : 'text-gray-400'
+        }`} />
+      </button>
+
+      {/* Dropdown Panel */}
+      {open && (
+        <div className="absolute z-50 w-full mt-2 bg-white border border-gray-100 rounded-2xl shadow-2xl shadow-gray-900/15 overflow-hidden animate-in"
+          style={{ animation: 'dropdownOpen 0.18s ease-out' }}>
+          <style>{`
+            @keyframes dropdownOpen {
+              from { opacity: 0; transform: translateY(-8px) scale(0.97); }
+              to   { opacity: 1; transform: translateY(0) scale(1); }
+            }
+          `}</style>
+          <div className="p-1.5 max-h-64 overflow-y-auto">
+            {options.map((opt) => {
+              const isSelected = String(opt.value) === String(value);
+              return (
+                <button
+                  key={opt.value}
+                  type="button"
+                  onClick={() => handleSelect(opt.value)}
+                  className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all duration-150 text-left group ${
+                    isSelected
+                      ? 'bg-primary text-white shadow-sm'
+                      : 'hover:bg-blue-50/80 text-gray-700'
+                  }`}
+                >
+                  {opt.icon && (
+                    <span className={`w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 ${
+                      isSelected ? 'bg-white/20' : 'bg-gray-100 group-hover:bg-primary/10'
+                    }`}>
+                      <span className={isSelected ? 'text-white' : 'text-gray-500 group-hover:text-primary'}>
+                        {opt.icon}
+                      </span>
+                    </span>
+                  )}
+                  <div className="flex-1 min-w-0">
+                    <span className={`block font-semibold text-sm ${isSelected ? 'text-white' : 'text-gray-800'}`}>
+                      {opt.label}
+                    </span>
+                    {opt.description && (
+                      <span className={`block text-[11px] mt-0.5 ${isSelected ? 'text-white/70' : 'text-gray-400'}`}>
+                        {opt.description}
+                      </span>
+                    )}
+                  </div>
+                  {isSelected && <CheckIcon className="w-4 h-4 text-white flex-shrink-0" />}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
+
+// Visa type options with icons + descriptions
+// Icon picker — gives each visa type a relevant icon based on its name
+const getVisaIcon = (visaType) => {
+  const name = visaType.toLowerCase();
+  if (name.includes('tour') || name.includes('visit') || name.includes('holiday'))
+    return <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3.055 11H5a2 2 0 012 2v1a2 2 0 002 2 2 2 0 012 2v2.945M8 3.935V5.5A2.5 2.5 0 0010.5 8h.5a2 2 0 012 2 2 2 0 104 0 2 2 0 012-2h1.064M15 20.488V18a2 2 0 012-2h3.064M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>;
+  if (name.includes('business') || name.includes('trade') || name.includes('commercial'))
+    return <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 13.255A23.931 23.931 0 0112 15c-3.183 0-6.22-.62-9-1.745M16 6V4a2 2 0 00-2-2h-4a2 2 0 00-2 2v2m4 6h.01M5 20h14a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" /></svg>;
+  if (name.includes('work') || name.includes('employ') || name.includes('labour'))
+    return <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /></svg>;
+  if (name.includes('stud') || name.includes('edu') || name.includes('school') || name.includes('university'))
+    return <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M12 14l9-5-9-5-9 5 9 5z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 14l9-5-9-5-9 5 9 5zm0 0l6.16-3.422a12.083 12.083 0 01.665 6.479A11.952 11.952 0 0012 20.055a11.952 11.952 0 00-6.824-2.998 12.078 12.078 0 01.665-6.479L12 14zm-4 6v-7.5l4-2.222" /></svg>;
+  if (name.includes('famil') || name.includes('spouse') || name.includes('reunion'))
+    return <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" /></svg>;
+  if (name.includes('diplomat') || name.includes('official') || name.includes('govern'))
+    return <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 21v-4m0 0V5a2 2 0 012-2h6.5l1 1H21l-3 6 3 6h-8.5l-1-1H5a2 2 0 00-2 2zm9-13.5V9" /></svg>;
+  if (name.includes('medic') || name.includes('health') || name.includes('treat'))
+    return <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" /></svg>;
+  if (name.includes('journal') || name.includes('press') || name.includes('media'))
+    return <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 20H5a2 2 0 01-2-2V6a2 2 0 012-2h10a2 2 0 012 2v1m2 13a2 2 0 01-2-2V7m2 13a2 2 0 002-2V9a2 2 0 00-2-2h-2m-4-3H9M7 16h6M7 8h6v4H7V8z" /></svg>;
+  if (name.includes('transit') || name.includes('transfer') || name.includes('stopover'))
+    return <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" /></svg>;
+  // Generic document icon for any other custom type
+  return <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>;
+};
+
+
+const PAYMENT_OPTIONS = [
+  {
+    value: 'Credit Card',
+    label: 'Credit / Debit Card',
+    description: 'Visa, Mastercard, AMEX',
+    icon: <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" /></svg>,
+  },
+  {
+    value: 'PayPal',
+    label: 'PayPal',
+    description: 'Pay securely via PayPal',
+    icon: <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>,
+  },
+  {
+    value: 'Bank Transfer',
+    label: 'Bank Transfer',
+    description: 'Wire transfer (2–3 business days)',
+    icon: <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 14v3m4-3v3m4-3v3M3 21h18M3 10h18M3 7l9-4 9 4M4 10h16v11H4V10z" /></svg>,
+  },
+];
+
 
 const ApplyVisa = () => {
   const { user, loading } = useContext(AuthContext);
@@ -16,6 +172,8 @@ const ApplyVisa = () => {
   const [isSubmitted, setIsSubmitted] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [editId, setEditId] = useState(null);
+  const [renewId, setRenewId] = useState(null);
+  const [visaConfigs, setVisaConfigs] = useState([]);
 
   // Expanded Form State to include necessary fields
   const [formData, setFormData] = useState({
@@ -46,6 +204,11 @@ const ApplyVisa = () => {
   });
 
   useEffect(() => {
+    // Fetch configs
+    axios.get('/api/visa/config').then(res => {
+       if (res.data.success) setVisaConfigs(res.data.configs);
+    }).catch(err => console.error("Error fetching configs:", err));
+
     if (loading) return;
     if (!user) {
       const typeParam = new URLSearchParams(location.search).get('type');
@@ -70,7 +233,37 @@ const ApplyVisa = () => {
       setFormData(prev => ({ ...prev, visaType: typeParam.charAt(0).toUpperCase() + typeParam.slice(1) }));
     }
     
-    if (editMode === 'true' && id && token) {
+    const renewMode = params.get('renew');
+    if (renewMode === 'true' && id && token) {
+      setRenewId(id);
+      axios.get('/api/visa/my-applications', {
+        headers: { Authorization: `Bearer ${token}` }
+      }).then(res => {
+        if (res.data.success) {
+          const app = res.data.applications.find(a => a._id === id);
+          if (app) {
+            setFormData(prev => ({
+              ...prev,
+              visaType: app.visaType || prev.visaType,
+              firstName: app.personalDetails?.firstName || prev.firstName,
+              lastName: app.personalDetails?.lastName || prev.lastName,
+              passportNumber: app.personalDetails?.passportNumber || app.passportNumber || prev.passportNumber,
+              nationality: app.personalDetails?.nationality || prev.nationality,
+              passportExpiry: app.personalDetails?.passportExpiry ? new Date(app.personalDetails.passportExpiry).toISOString().split('T')[0] : prev.passportExpiry,
+              phone: app.personalDetails?.phone || app.travelDetails?.phone || app.phone || prev.phone,
+              email: app.personalDetails?.email || prev.email,
+              passportScanName: app.passportDocument || 'existing_document',
+              selfieName: app.supportingDocuments?.[0] || 'existing_photo',
+              supportingDocName: app.supportingDocuments?.[1] || 'existing_support',
+              passportScanData: 'data:image/jpeg;base64,dummy',
+              selfieData: 'data:image/jpeg;base64,dummy',
+              supportingDocData: 'data:application/pdf;base64,dummy'
+            }));
+            setStep(2); // Start at duration selection
+          }
+        }
+      }).catch(err => console.error("Error fetching application to renew", err));
+    } else if (editMode === 'true' && id && token) {
       setEditId(id);
       axios.get('/api/visa/my-applications', {
         headers: { Authorization: `Bearer ${token}` }
@@ -148,8 +341,31 @@ const ApplyVisa = () => {
     }
   };
 
-  const visaPrices = { Tourist: 50, Business: 100, Worker: 150, Student: 40, Family: 60, Diplomatic: 0 };
-  const amountDue = visaPrices[formData.visaType] || 50;
+  const getAmountDue = () => {
+     if (!formData.visaType || !formData.duration) return 50;
+     const config = visaConfigs.find(c => 
+       c.visaType.toLowerCase() === formData.visaType.toLowerCase() ||
+       (c.visaType.toLowerCase() === 'tourism' && formData.visaType.toLowerCase() === 'tourist') ||
+       (c.visaType.toLowerCase() === 'tourist' && formData.visaType.toLowerCase() === 'tourism')
+     );
+     if (config) {
+       const option = config.options.find(o => o.duration === Number(formData.duration));
+       if (option) return option.price;
+     }
+     // Fallbacks if not configured yet
+     const fallbacks = { Tourist: 50, Tourism: 50, Business: 100, Worker: 150, Student: 40, Family: 60, Diplomatic: 0, Medical: 50 };
+     return fallbacks[formData.visaType] || 50;
+  };
+  const amountDue = getAmountDue();
+
+  // 100% backend-driven: derive visa options purely from visaConfigs fetched from the API.
+  // Whatever the admin adds/deletes/renames in Configurations is immediately reflected here.
+  const dynamicVisaOptions = visaConfigs.map(c => ({
+    value: c.visaType,
+    label: `${c.visaType} Visa`,
+    description: `${c.visaType} travel & entry permit`,
+    icon: getVisaIcon(c.visaType),
+  }));
 
   const nextStep = () => setStep(step + 1);
   const prevStep = () => setStep(step - 1);
@@ -197,7 +413,7 @@ const ApplyVisa = () => {
       formDataToSend.append('travelDetails', JSON.stringify({
         arrivalDate: formData.arrivalDate,
         departureDate: formData.departureDate,
-        hostAddress: formData.hostAddress,
+        hostAddress: formData.hostAddress || formData.address || '',
         phone: formData.phone
       }));
 
@@ -229,6 +445,33 @@ const ApplyVisa = () => {
       } finally {
         setIsSubmitting(false);
       }
+    } else if (renewId) {
+       const renewData = {
+          linkedApplicationId: renewId,
+          visaType: formData.visaType,
+          visaDuration: formData.duration,
+          amountPaid: amountDue,
+          paymentMethod: formData.paymentMethod,
+          paymentStatus: formData.paymentMethod === 'Bank Transfer' ? 'Pending' : 'Completed'
+       };
+       try {
+        const res = await axios.post(`/api/visa/renew`, renewData, {
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+          }
+        });
+        if (res.data.success) {
+          setIsSubmitted(true);
+        } else {
+          alert('Failed to renew: ' + res.data.message);
+        }
+      } catch (error) {
+        console.error(error);
+        alert('Error renewing application: ' + (error.response?.data?.message || error.message));
+      } finally {
+        setIsSubmitting(false);
+      }
     } else {
       const formDataToSend = new FormData();
       formDataToSend.append('visaType', formData.visaType);
@@ -249,7 +492,7 @@ const ApplyVisa = () => {
       formDataToSend.append('travelDetails', JSON.stringify({
         arrivalDate: formData.arrivalDate,
         departureDate: formData.departureDate,
-        hostAddress: formData.hostAddress,
+        hostAddress: formData.hostAddress || formData.address || '',
         phone: formData.phone
       }));
 
@@ -286,7 +529,11 @@ const ApplyVisa = () => {
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    if (step === 6 && editId) {
+    if (step === 6 && (editId || renewId)) {
+      if (renewId) {
+        nextStep(); // Go to payment for renewal
+        return;
+      }
       finalizeApplication();
       return;
     }
@@ -577,38 +824,111 @@ const ApplyVisa = () => {
               {step === 2 && (
                 <div className="space-y-6 animate-fadeIn">
                   <div>
-                    <label className="block text-sm font-semibold text-gray-700 mb-2 tracking-wide">Visa Category</label>
-                    <select 
-                      name="visaType" 
-                      required
-                      value={formData.visaType} 
-                      onChange={handleChange} 
-                      className={`w-full px-4 py-3.5 rounded-xl border border-gray-200/80 bg-gray-50/50 hover:bg-white focus:bg-white focus:ring-2 focus:ring-slate-800/20 focus:border-slate-800 font-medium ${!formData.visaType ? 'text-gray-400' : 'text-gray-800'}`}
-                    >
-                      <option value="" disabled className="font-bold">Select visa type</option>
-                      <option value="Tourist" className="text-gray-900 font-bold">Tourist Visa</option>
-                      <option value="Business" className="text-gray-900 font-bold">Business Visa</option>
-                      <option value="Worker" className="text-gray-900 font-bold">Worker Visa</option>
-                      <option value="Student" className="text-gray-900 font-bold">Student Visa</option>
-                      <option value="Family" className="text-gray-900 font-bold">Family Visa</option>
-                      <option value="Diplomatic" className="text-gray-900 font-bold">Diplomatic Visa</option>
-                    </select>
+                    <label className="block text-sm font-semibold text-gray-700 mb-3 tracking-wide">Visa Category</label>
+                    {dynamicVisaOptions.length === 0 ? (
+                      <div className="flex items-center justify-center py-10 text-gray-400 text-sm border-2 border-dashed border-gray-200 rounded-2xl">
+                        <svg className="w-5 h-5 mr-2 animate-spin" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/></svg>
+                        Loading visa types...
+                      </div>
+                    ) : (
+                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                      {dynamicVisaOptions.map(opt => {
+                        const isSelected = formData.visaType?.toLowerCase() === opt.value.toLowerCase();
+                        return (
+                          <button
+                            key={opt.value}
+                            type="button"
+                            onClick={() => handleChange({ target: { name: 'visaType', value: opt.value } })}
+                            className={`relative flex flex-col items-start gap-2 p-4 rounded-2xl border-2 text-left transition-all duration-200 group
+                              ${isSelected
+                                ? 'border-primary bg-primary shadow-lg shadow-primary/20'
+                                : 'border-gray-200 bg-white hover:border-primary/50 hover:bg-blue-50/40 hover:shadow-sm'
+                              }`}
+                          >
+                            {isSelected && (
+                              <span className="absolute top-2.5 right-2.5 w-5 h-5 bg-white rounded-full flex items-center justify-center shadow-sm">
+                                <CheckIcon className="w-3 h-3 text-primary" />
+                              </span>
+                            )}
+                            <span className={`w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0 transition-all ${
+                              isSelected ? 'bg-white/20 text-white' : 'bg-gray-100 text-gray-500 group-hover:bg-primary/10 group-hover:text-primary'
+                            }`}>
+                              {opt.icon}
+                            </span>
+                            <div>
+                              <span className={`block font-bold text-sm leading-tight ${isSelected ? 'text-white' : 'text-gray-800'}`}>
+                                {opt.value}
+                              </span>
+                              <span className={`block text-[11px] mt-0.5 leading-snug ${isSelected ? 'text-white/70' : 'text-gray-400'}`}>
+                                {opt.description}
+                              </span>
+                            </div>
+                          </button>
+                        );
+                      })}
+                    </div>
+                    )}
                   </div>
                   <div>
-                    <label className="block text-sm font-semibold text-gray-700 mb-2 tracking-wide">Duration (Days)</label>
-                    <select 
-                      name="duration" 
-                      required
-                      value={formData.duration} 
-                      onChange={handleChange} 
-                      className={`w-full px-4 py-3.5 rounded-xl border border-gray-200/80 bg-gray-50/50 hover:bg-white focus:bg-white focus:ring-2 focus:ring-slate-800/20 focus:border-slate-800 font-medium ${!formData.duration ? 'text-gray-400' : 'text-gray-800'}`}
-                    >
-                      <option value="" disabled className="font-bold">Select duration</option>
-                      <option value="30" className="text-gray-900 font-bold">30 Days</option>
-                      <option value="60" className="text-gray-900 font-bold">60 Days</option>
-                      <option value="90" className="text-gray-900 font-bold">90 Days</option>
-                    </select>
+                    <label className="block text-sm font-semibold text-gray-700 mb-2 tracking-wide">Duration of Stay</label>
+                    {(() => {
+                      const activeConfig = visaConfigs.find(c => 
+                        c.visaType.toLowerCase() === formData.visaType.toLowerCase() ||
+                        (c.visaType.toLowerCase() === 'tourism' && formData.visaType.toLowerCase() === 'tourist') ||
+                        (c.visaType.toLowerCase() === 'tourist' && formData.visaType.toLowerCase() === 'tourism')
+                      );
+                      const hasOptions = activeConfig && activeConfig.options && activeConfig.options.length > 0;
+                      const calIcon = (
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                        </svg>
+                      );
+                      const durationOptions = hasOptions
+                        ? activeConfig.options.map(opt => ({
+                            value: String(opt.duration),
+                            label: `${opt.duration} Days`,
+                            description: `Visa fee · $${opt.price} USD`,
+                            icon: calIcon,
+                          }))
+                        : [30, 60, 90].map(d => ({
+                            value: String(d),
+                            label: `${d} Days`,
+                            description: 'Standard duration',
+                            icon: calIcon,
+                          }));
+                      return (
+                        <CustomSelect
+                          name="duration"
+                          value={formData.duration}
+                          onChange={handleChange}
+                          options={durationOptions}
+                          placeholder={formData.visaType ? 'Select duration of stay' : 'Select visa type first'}
+                          disabled={!formData.visaType}
+                          required
+                        />
+                      );
+                    })()}
                   </div>
+
+                  {/* Price Summary Card */}
+                  {formData.visaType && formData.duration && (
+                    <div className="flex items-center gap-4 p-4 rounded-2xl bg-gradient-to-r from-emerald-50 to-teal-50 border border-emerald-200 shadow-sm">
+                      <div className="w-12 h-12 rounded-xl bg-emerald-500 flex items-center justify-center flex-shrink-0 shadow-md shadow-emerald-300/50">
+                        <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                      </div>
+                      <div className="flex-1">
+                        <p className="text-xs font-bold uppercase tracking-wider text-emerald-700 mb-0.5">Fee for this Visa</p>
+                        <p className="text-sm text-emerald-800 font-semibold">
+                          {formData.visaType} Visa · <span className="font-extrabold">{formData.duration} days</span>
+                        </p>
+                      </div>
+                      <div className="text-right">
+                        <span className="text-3xl font-extrabold text-emerald-700">${amountDue}</span>
+                        <p className="text-[10px] text-emerald-500 font-semibold uppercase tracking-wider">USD</p>
+                      </div>
+                    </div>
+                  )}
+
                   <div>
                     <label className="block text-sm font-semibold text-gray-700 mb-2 tracking-wide">Purpose of Travel</label>
                     <textarea 
@@ -692,7 +1012,7 @@ const ApplyVisa = () => {
               {/* Step 4: Contact & Travel Information */}
               {step === 4 && (
                 <div className="space-y-6 animate-fadeIn">
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div className={`grid grid-cols-1 md:grid-cols-2 gap-6`}>
                     <div>
                       <label className="block text-sm font-semibold text-gray-700 mb-2 tracking-wide">Email Address</label>
                       <input 
@@ -717,17 +1037,19 @@ const ApplyVisa = () => {
                         className="w-full px-4 py-3.5 rounded-xl border border-gray-200/80 bg-gray-50/50 hover:bg-white focus:bg-white focus:ring-2 focus:ring-primary/20 focus:border-primary text-gray-800"
                       />
                     </div>
-                    <div>
-                      <label className="block text-sm font-semibold text-gray-700 mb-2 tracking-wide">Expected Arrival Date</label>
-                      <input 
-                        type="date" 
-                        name="arrivalDate" 
-                        required 
-                        value={formData.arrivalDate} 
-                        onChange={handleChange} 
-                        className="w-full px-4 py-3.5 rounded-xl border border-gray-200/80 bg-gray-50/50 hover:bg-white focus:bg-white focus:ring-2 focus:ring-primary/20 focus:border-primary text-gray-800"
-                      />
-                    </div>
+                    {!renewId && (
+                      <div>
+                        <label className="block text-sm font-semibold text-gray-700 mb-2 tracking-wide">Expected Arrival Date</label>
+                        <input 
+                          type="date" 
+                          name="arrivalDate" 
+                          required={!renewId} 
+                          value={formData.arrivalDate} 
+                          onChange={handleChange} 
+                          className="w-full px-4 py-3.5 rounded-xl border border-gray-200/80 bg-gray-50/50 hover:bg-white focus:bg-white focus:ring-2 focus:ring-primary/20 focus:border-primary text-gray-800"
+                        />
+                      </div>
+                    )}
                     <div>
                       <label className="block text-sm font-semibold text-gray-700 mb-2 tracking-wide">Expected Departure Date</label>
                       <input 
@@ -745,8 +1067,11 @@ const ApplyVisa = () => {
                     <textarea 
                       name="hostAddress" 
                       required 
-                      value={formData.hostAddress} 
-                      onChange={handleChange} 
+                      value={formData.hostAddress || formData.address || ''} 
+                      onChange={(e) => {
+                        handleChange(e);
+                        setFormData(prev => ({ ...prev, hostAddress: e.target.value, address: e.target.value }));
+                      }} 
                       rows="2" 
                       placeholder="e.g. Hotel Decale, Mogadishu, Somalia or residential host details..." 
                       className="w-full px-4 py-3.5 rounded-xl border border-gray-200/80 bg-gray-50/50 hover:bg-white focus:bg-white focus:ring-2 focus:ring-primary/20 focus:border-primary text-gray-800"
@@ -756,94 +1081,100 @@ const ApplyVisa = () => {
               )}
 
               {/* Step 5: Required Documents */}
-              {step === 5 && (
-                <div className="space-y-6 animate-fadeIn">
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                    
-                    {/* Passport upload block */}
-                    <div className="border border-dashed border-gray-300 hover:border-primary rounded-2xl p-6 text-center transition-all bg-gray-50/50 hover:bg-white relative">
-                      <input 
-                        type="file" 
-                        accept="image/*,application/pdf"
-                        required={!formData.passportScanName}
-                        onChange={(e) => handleFileChange(e, 'passportScanName')}
-                        className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
-                      />
-                      <div className="space-y-3">
-                        <IdentificationIcon className="w-10 h-10 mx-auto text-primary" />
-                        <h4 className="font-bold text-gray-800 text-sm">Passport Bio-Data Scan</h4>
-                        <p className="text-xs text-gray-500 leading-relaxed px-4">
-                          Upload a clear JPG or PDF of your passport bio page. Max size 5MB.
-                        </p>
-                        {formData.passportScanName ? (
-                          <div className="inline-flex items-center gap-1.5 bg-emerald-50 text-emerald-700 text-xs px-3 py-1.5 rounded-full font-bold border border-emerald-200">
-                            ✓ {formData.passportScanName}
-                          </div>
-                        ) : (
-                          <span className="inline-block bg-primary/5 text-primary text-xs px-3 py-1.5 rounded-full font-bold">
-                            Select File
-                          </span>
-                        )}
-                      </div>
+              {step === 5 && (() => {
+                const renderDocBadge = (docName) => {
+                  if (!docName) {
+                    return (
+                      <span className="inline-block bg-primary/5 text-primary text-xs px-3 py-1.5 rounded-full font-bold">
+                        Select File
+                      </span>
+                    );
+                  }
+                  let label = docName;
+                  if (docName.startsWith('http://') || docName.startsWith('https://') || docName.includes('/') || docName.includes('evisa')) {
+                    label = 'Existing Document Attached';
+                  } else if (docName.length > 20) {
+                    label = docName.substring(0, 17) + '...';
+                  }
+                  return (
+                    <div className="inline-flex items-center justify-center gap-1.5 bg-emerald-50 text-emerald-700 text-xs px-3 py-1.5 rounded-full font-bold border border-emerald-200 max-w-full overflow-hidden text-ellipsis whitespace-nowrap">
+                      <span className="shrink-0">✓</span>
+                      <span className="truncate">{label}</span>
                     </div>
+                  );
+                };
 
-                    {/* Photo/Selfie upload block */}
-                    <div className="border border-dashed border-gray-300 hover:border-primary rounded-2xl p-6 text-center transition-all bg-gray-50/50 hover:bg-white relative">
-                      <input 
-                        type="file" 
-                        accept="image/*"
-                        required={!formData.selfieName}
-                        onChange={(e) => handleFileChange(e, 'selfieName')}
-                        className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
-                      />
-                      <div className="space-y-3">
-                        <CameraIcon className="w-10 h-10 mx-auto text-primary" />
-                        <h4 className="font-bold text-gray-800 text-sm">Applicant Photo / Selfie</h4>
-                        <p className="text-xs text-gray-500 leading-relaxed px-4">
-                          Upload a recent high-quality passport size portrait. Max size 2MB.
-                        </p>
-                        {formData.selfieName ? (
-                          <div className="inline-flex items-center gap-1.5 bg-emerald-50 text-emerald-700 text-xs px-3 py-1.5 rounded-full font-bold border border-emerald-200">
-                            ✓ {formData.selfieName}
+                return (
+                  <div className="space-y-6 animate-fadeIn">
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                      
+                      {/* Passport upload block */}
+                      <div className="border border-dashed border-gray-300 hover:border-primary rounded-2xl p-6 text-center transition-all bg-gray-50/50 hover:bg-white relative flex flex-col justify-between items-center">
+                        <input 
+                          type="file" 
+                          accept="image/*,application/pdf"
+                          required={!formData.passportScanName}
+                          onChange={(e) => handleFileChange(e, 'passportScanName')}
+                          className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
+                        />
+                        <div className="space-y-3 w-full">
+                          <IdentificationIcon className="w-10 h-10 mx-auto text-primary" />
+                          <h4 className="font-bold text-gray-800 text-sm">Passport Bio-Data Scan</h4>
+                          <p className="text-xs text-gray-500 leading-relaxed px-2">
+                            Upload a clear JPG or PDF of your passport bio page. Max size 5MB.
+                          </p>
+                          <div className="pt-1 flex justify-center w-full">
+                            {renderDocBadge(formData.passportScanName)}
                           </div>
-                        ) : (
-                          <span className="inline-block bg-primary/5 text-primary text-xs px-3 py-1.5 rounded-full font-bold">
-                            Select File
-                          </span>
-                        )}
+                        </div>
                       </div>
-                    </div>
 
-                    {/* Supporting Documents upload block */}
-                    <div className="border border-dashed border-gray-300 hover:border-primary rounded-2xl p-6 text-center transition-all bg-gray-50/50 hover:bg-white relative">
-                      <input 
-                        type="file" 
-                        accept="application/pdf,image/*"
-                        required={!formData.supportingDocName}
-                        onChange={(e) => handleFileChange(e, 'supportingDocName')}
-                        className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
-                      />
-                      <div className="space-y-3">
-                        <svg className="w-10 h-10 mx-auto text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
-                        <h4 className="font-bold text-gray-800 text-sm">Bank Statements</h4>
-                        <p className="text-xs text-gray-500 leading-relaxed px-4">
-                          Upload banking statements. Max size 5MB.
-                        </p>
-                        {formData.supportingDocName ? (
-                          <div className="inline-flex items-center gap-1.5 bg-emerald-50 text-emerald-700 text-xs px-3 py-1.5 rounded-full font-bold border border-emerald-200">
-                            ✓ {formData.supportingDocName}
+                      {/* Photo/Selfie upload block */}
+                      <div className="border border-dashed border-gray-300 hover:border-primary rounded-2xl p-6 text-center transition-all bg-gray-50/50 hover:bg-white relative flex flex-col justify-between items-center">
+                        <input 
+                          type="file" 
+                          accept="image/*"
+                          required={!formData.selfieName}
+                          onChange={(e) => handleFileChange(e, 'selfieName')}
+                          className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
+                        />
+                        <div className="space-y-3 w-full">
+                          <CameraIcon className="w-10 h-10 mx-auto text-primary" />
+                          <h4 className="font-bold text-gray-800 text-sm">Applicant Photo / Selfie</h4>
+                          <p className="text-xs text-gray-500 leading-relaxed px-2">
+                            Upload a recent high-quality passport size portrait. Max size 2MB.
+                          </p>
+                          <div className="pt-1 flex justify-center w-full">
+                            {renderDocBadge(formData.selfieName)}
                           </div>
-                        ) : (
-                          <span className="inline-block bg-primary/5 text-primary text-xs px-3 py-1.5 rounded-full font-bold">
-                            Select File
-                          </span>
-                        )}
+                        </div>
                       </div>
-                    </div>
 
+                      {/* Supporting Documents upload block */}
+                      <div className="border border-dashed border-gray-300 hover:border-primary rounded-2xl p-6 text-center transition-all bg-gray-50/50 hover:bg-white relative flex flex-col justify-between items-center">
+                        <input 
+                          type="file" 
+                          accept="application/pdf,image/*"
+                          required={!formData.supportingDocName}
+                          onChange={(e) => handleFileChange(e, 'supportingDocName')}
+                          className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
+                        />
+                        <div className="space-y-3 w-full">
+                          <svg className="w-10 h-10 mx-auto text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
+                          <h4 className="font-bold text-gray-800 text-sm">Bank Statements</h4>
+                          <p className="text-xs text-gray-500 leading-relaxed px-2">
+                            Upload banking statements. Max size 5MB.
+                          </p>
+                          <div className="pt-1 flex justify-center w-full">
+                            {renderDocBadge(formData.supportingDocName)}
+                          </div>
+                        </div>
+                      </div>
+
+                    </div>
                   </div>
-                </div>
-              )}
+                );
+              })()}
 
               {/* Step 6: Review & Confirm */}
               {step === 6 && (
@@ -908,28 +1239,37 @@ const ApplyVisa = () => {
 
                   <div className="space-y-4">
                     <h4 className="font-bold text-gray-800 text-sm uppercase tracking-wider">Select Payment Method</h4>
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                      <div 
-                        onClick={() => setFormData({...formData, paymentMethod: 'Credit Card'})}
-                        className={`p-4 rounded-xl border-2 cursor-pointer transition-all flex flex-col items-center gap-2 ${formData.paymentMethod === 'Credit Card' ? 'border-primary bg-primary/5' : 'border-gray-200 hover:border-primary/50'}`}
-                      >
-                        <span className="text-2xl">💳</span>
-                        <span className="font-bold text-sm">Credit Card</span>
-                      </div>
-                      <div 
-                        onClick={() => setFormData({...formData, paymentMethod: 'PayPal'})}
-                        className={`p-4 rounded-xl border-2 cursor-pointer transition-all flex flex-col items-center gap-2 ${formData.paymentMethod === 'PayPal' ? 'border-primary bg-primary/5' : 'border-gray-200 hover:border-primary/50'}`}
-                      >
-                        <span className="text-2xl">🅿️</span>
-                        <span className="font-bold text-sm">PayPal</span>
-                      </div>
-                      <div 
-                        onClick={() => setFormData({...formData, paymentMethod: 'Bank Transfer'})}
-                        className={`p-4 rounded-xl border-2 cursor-pointer transition-all flex flex-col items-center gap-2 ${formData.paymentMethod === 'Bank Transfer' ? 'border-primary bg-primary/5' : 'border-gray-200 hover:border-primary/50'}`}
-                      >
-                        <span className="text-2xl">🏦</span>
-                        <span className="font-bold text-sm">Bank Transfer</span>
-                      </div>
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                      {PAYMENT_OPTIONS.map(opt => {
+                        const isActive = formData.paymentMethod === opt.value;
+                        return (
+                          <button
+                            key={opt.value}
+                            type="button"
+                            onClick={() => setFormData({...formData, paymentMethod: opt.value})}
+                            className={`relative flex flex-col items-center gap-3 p-5 rounded-2xl border-2 cursor-pointer transition-all duration-200 text-center group
+                              ${isActive
+                                ? 'border-primary bg-gradient-to-b from-primary/8 to-primary/3 shadow-md shadow-primary/10'
+                                : 'border-gray-200 bg-white hover:border-primary/40 hover:shadow-sm hover:bg-blue-50/30'
+                              }`}
+                          >
+                            {isActive && (
+                              <span className="absolute top-2.5 right-2.5 w-5 h-5 bg-primary rounded-full flex items-center justify-center shadow-sm">
+                                <CheckIcon className="w-3 h-3 text-white" />
+                              </span>
+                            )}
+                            <span className={`w-11 h-11 rounded-xl flex items-center justify-center transition-all ${
+                              isActive ? 'bg-primary text-white shadow-md shadow-primary/30' : 'bg-gray-100 text-gray-500 group-hover:bg-primary/10 group-hover:text-primary'
+                            }`}>
+                              {opt.icon}
+                            </span>
+                            <div>
+                              <span className={`block font-bold text-sm ${isActive ? 'text-primary' : 'text-gray-800'}`}>{opt.label}</span>
+                              <span className="block text-[11px] text-gray-400 mt-0.5">{opt.description}</span>
+                            </div>
+                          </button>
+                        );
+                      })}
                     </div>
                   </div>
 

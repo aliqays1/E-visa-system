@@ -54,7 +54,7 @@ app.get('/uploads/pdfs/visa-:id', async (req, res, next) => {
       const { generateVisaPdf } = require('./utils/pdfGenerator');
 
       const application = await VisaApplication.findById(cleanId);
-      if (application && application.applicationStatus === 'Approved') {
+      if (application && (application.applicationStatus === 'Approved' || application.applicationStatus === 'Active')) {
         const relativePdfPath = await generateVisaPdf(application);
         application.pdfUrl = relativePdfPath;
         await application.save();

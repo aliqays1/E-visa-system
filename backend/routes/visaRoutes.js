@@ -1,7 +1,8 @@
 const express = require('express');
 const router = express.Router();
 const visaController = require('../controllers/visaController');
-const { protect, officerOnly, authOptional } = require('../middlewares/authMiddleware');
+const visaConfigController = require('../controllers/visaConfigController');
+const { protect, officerOnly, authOptional, adminOnly } = require('../middlewares/authMiddleware');
 const upload = require('../middlewares/upload');
 
 // Submit new visa application with document uploads
@@ -11,11 +12,24 @@ router.post('/apply', protect, upload.fields([
   { name: 'supportingDocument', maxCount: 1 }
 ]), visaController.applyVisa);
 
+// Submit a renewal application (JSON only - documents reused from original)
+router.post('/renew', protect, visaController.renewVisa);
+
+// Visa Configs
+router.get('/config', visaConfigController.getConfigs);
+router.post('/config', protect, officerOnly, visaConfigController.upsertConfig);
+router.put('/config/:oldVisaType/rename', protect, officerOnly, visaConfigController.renameConfig);
+router.put('/config/:visaType', protect, officerOnly, visaConfigController.upsertConfig);
+router.delete('/config/:visaType', protect, officerOnly, visaConfigController.deleteConfig);
+
 // Fetch current applicant's applications
 router.get('/my-applications', protect, visaController.getMyApplications);
 
 // Fetch stats (Officer view)
 router.get('/stats', protect, officerOnly, visaController.getStats);
+
+// Fetch reports (Admin view)
+router.get('/reports', protect, officerOnly, visaController.getReports);
 
 // Fetch all applications (Officer view)
 router.get('/all', protect, officerOnly, visaController.getAllApplications);

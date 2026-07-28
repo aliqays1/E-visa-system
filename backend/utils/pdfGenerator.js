@@ -66,12 +66,22 @@ const generateVisaPdf = async (application) => {
       doc.text(`Visa Reference: ${application._id}`, 300);
       doc.moveDown(0.3);
       doc.text(`Visa Type: ${application.visaType} Visa`, 300);
+      const lastRenewalDays = (application.renewalHistory && application.renewalHistory.length > 0)
+        ? application.renewalHistory[application.renewalHistory.length - 1].addedDays
+        : null;
+      const durationText = `${lastRenewalDays || application.stayDuration || application.visaDuration || 30} Days`;
+      const issueDateStr = application.issueDate ? new Date(application.issueDate).toLocaleDateString() : (application.approvalDate ? new Date(application.approvalDate).toLocaleDateString() : 'N/A');
+      const expiryDateStr = application.stayExpiryDate ? new Date(application.stayExpiryDate).toLocaleDateString() : (application.entryValidUntil ? new Date(application.entryValidUntil).toLocaleDateString() : (application.expirationDate ? new Date(application.expirationDate).toLocaleDateString() : 'N/A'));
+
+      doc.text(`Duration: ${durationText}`, 300);
       doc.moveDown(0.3);
-      doc.text(`Duration: ${application.visaDuration} Days`, 300);
+      doc.text(`Issue Date: ${issueDateStr}`, 300);
       doc.moveDown(0.3);
-      doc.text(`Issue Date: ${new Date(application.approvalDate).toLocaleDateString()}`, 300);
-      doc.moveDown(0.3);
-      doc.text(`Expiry Date: ${new Date(application.expirationDate).toLocaleDateString()}`, 300);
+      doc.text(`Expiry Date: ${expiryDateStr}`, 300);
+      if (application.renewalCount && application.renewalCount > 0) {
+        doc.moveDown(0.3);
+        doc.text(`Status: Renewed (${application.renewalCount} Extension${application.renewalCount > 1 ? 's' : ''})`, 300);
+      }
 
       doc.moveDown(3);
 
