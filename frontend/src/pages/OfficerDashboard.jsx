@@ -1392,8 +1392,15 @@ const OfficerDashboard = () => {
                             {selectedApplication.secureToken}
                           </span>
                         </div>
-                        <div className="flex justify-between items-center text-xs text-gray-600 pt-0.5">
-                          <span><strong>Expiration Date:</strong> {selectedApplication.expirationDate ? new Date(selectedApplication.expirationDate).toLocaleDateString() : 'N/A'}</span>
+                        <div className="flex justify-between items-center text-xs pt-0.5">
+                          <span className="text-gray-400 font-bold uppercase text-[10px] tracking-wider">Entry Valid Until</span>
+                          <span className="font-bold text-slate-800 text-xs">
+                            {selectedApplication.entryValidUntil
+                              ? new Date(selectedApplication.entryValidUntil).toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' })
+                              : selectedApplication.validUntilDate
+                              ? new Date(selectedApplication.validUntilDate).toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' })
+                              : 'N/A'}
+                          </span>
                         </div>
                       </div>
                     </div>
