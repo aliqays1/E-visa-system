@@ -1251,24 +1251,7 @@ const OfficerDashboard = () => {
               <button onClick={() => { setSelectedApplication(null); setRejectionReason(''); }} className="text-white/70 hover:text-white text-xl">✕</button>
             </div>
             <div className="p-6 space-y-6 overflow-y-auto flex-1">
-              {selectedApplication.applicationType === 'Renewal' && (
-                <div className="bg-purple-50 p-4 rounded-xl border border-purple-200/80 space-y-1.5">
-                  <div className="flex items-center justify-between">
-                    <h5 className="font-extrabold text-purple-950 text-xs uppercase tracking-wider flex items-center gap-1.5">
-                      <span className="w-2 h-2 rounded-full bg-purple-600 animate-pulse"></span>
-                      Renewal Application — Updated Traveler Info
-                    </h5>
-                    {selectedApplication.linkedApplicationId && (
-                      <span className="text-[10px] font-bold text-purple-800 bg-purple-200/60 px-2.5 py-0.5 rounded-full font-mono">
-                        Parent ID: {selectedApplication.linkedApplicationId}
-                      </span>
-                    )}
-                  </div>
-                  <p className="text-xs text-purple-800 leading-relaxed">
-                    This dossier displays the traveler's latest updated details, lodging address, travel dates, and documents submitted specifically for this renewal application.
-                  </p>
-                </div>
-              )}
+
               <div>
                 <h4 className="text-xs font-bold uppercase tracking-wider text-gray-400 mb-3 border-b border-gray-100 pb-1">Personal Details</h4>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm">
