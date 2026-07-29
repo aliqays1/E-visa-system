@@ -245,6 +245,7 @@ const ApplyVisa = () => {
             setFormData(prev => ({
               ...prev,
               visaType: app.visaType || prev.visaType,
+              purpose: app.purposeOfTravel || prev.purpose,
               firstName: app.personalDetails?.firstName || prev.firstName,
               lastName: app.personalDetails?.lastName || prev.lastName,
               passportNumber: app.personalDetails?.passportNumber || app.passportNumber || prev.passportNumber,
@@ -252,6 +253,10 @@ const ApplyVisa = () => {
               passportExpiry: app.personalDetails?.passportExpiry ? new Date(app.personalDetails.passportExpiry).toISOString().split('T')[0] : prev.passportExpiry,
               phone: app.personalDetails?.phone || app.travelDetails?.phone || app.phone || prev.phone,
               email: app.personalDetails?.email || prev.email,
+              arrivalDate: app.travelDetails?.arrivalDate ? new Date(app.travelDetails.arrivalDate).toISOString().split('T')[0] : prev.arrivalDate,
+              departureDate: app.travelDetails?.departureDate ? new Date(app.travelDetails.departureDate).toISOString().split('T')[0] : prev.departureDate,
+              hostAddress: app.travelDetails?.hostAddress || prev.hostAddress,
+              address: app.travelDetails?.hostAddress || prev.address,
               passportScanName: app.passportDocument || 'existing_document',
               selfieName: app.supportingDocuments?.[0] || 'existing_photo',
               supportingDocName: app.supportingDocuments?.[1] || 'existing_support',
@@ -959,7 +964,7 @@ const ApplyVisa = () => {
 
                   <div>
                     <label className="block text-sm font-semibold text-gray-700 mb-2 tracking-wide">
-                      {renewId ? 'Purpose of Travel (e.g. why staying longer than your visa now)' : 'Purpose of Travel'}
+                      {renewId ? 'Purpose of Staying Longer' : 'Purpose of Travel'}
                     </label>
                     <textarea 
                       name="purpose" 
