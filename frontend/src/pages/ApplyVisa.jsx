@@ -245,7 +245,7 @@ const ApplyVisa = () => {
             setFormData(prev => ({
               ...prev,
               visaType: app.visaType || prev.visaType,
-              purpose: app.purposeOfTravel || prev.purpose,
+              purpose: '', // Leave empty — applicant must state their own renewal reason
               firstName: app.personalDetails?.firstName || prev.firstName,
               lastName: app.personalDetails?.lastName || prev.lastName,
               passportNumber: app.personalDetails?.passportNumber || app.passportNumber || prev.passportNumber,
