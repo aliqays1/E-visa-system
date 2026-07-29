@@ -5,8 +5,7 @@ import { GlobeAltIcon, EyeIcon, EyeSlashIcon, EnvelopeIcon } from '@heroicons/re
 import OtpInput from '../components/OtpInput';
 
 const Login = () => {
-  const [email, setEmail] = useState(() => localStorage.getItem('remembered_email') || '');
-  const [rememberMe, setRememberMe] = useState(false);
+  const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
@@ -37,7 +36,7 @@ const Login = () => {
     e.preventDefault();
     setError('');
     setLoading(true);
-    const res = await login(email, password, rememberMe);
+    const res = await login(email, password);
     setLoading(false);
 
     if (res.success && res.requires_otp) {
@@ -60,7 +59,7 @@ const Login = () => {
 
     setError('');
     setLoading(true);
-    const res = await verifyLoginOtp(email, otpCode, rememberMe);
+    const res = await verifyLoginOtp(email, otpCode);
     setLoading(false);
 
     if (res.success) {
@@ -73,7 +72,7 @@ const Login = () => {
   const handleResend = async () => {
     setError('');
     setLoading(true);
-    const res = await login(email, password, rememberMe);
+    const res = await login(email, password);
     setLoading(false);
 
     if (res.success && res.requires_otp) {
@@ -193,13 +192,7 @@ const Login = () => {
                   <div className="flex items-center">
                     <div className="relative flex items-start">
                       <div className="flex items-center h-5">
-                        <input 
-                          id="remember" 
-                          type="checkbox" 
-                          checked={rememberMe}
-                          onChange={(e) => setRememberMe(e.target.checked)}
-                          className="w-4 h-4 border border-gray-300 rounded bg-gray-50 focus:ring-3 focus:ring-blue-300 text-blue-600 cursor-pointer transition-colors" 
-                        />
+                        <input id="remember" type="checkbox" className="w-4 h-4 border border-gray-300 rounded bg-gray-50 focus:ring-3 focus:ring-blue-300 text-blue-600 cursor-pointer transition-colors" />
                       </div>
                       <label htmlFor="remember" className="ml-2 text-sm font-medium text-gray-600 cursor-pointer">Remember me</label>
                     </div>

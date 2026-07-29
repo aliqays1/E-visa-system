@@ -9,11 +9,17 @@ const upload = require('../middlewares/upload');
 router.post('/apply', protect, upload.fields([
   { name: 'passportDocument', maxCount: 1 },
   { name: 'photoDocument', maxCount: 1 },
-  { name: 'supportingDocument', maxCount: 1 }
+  { name: 'supportingDocument', maxCount: 1 },
+  { name: 'admissionDocument', maxCount: 1 }
 ]), visaController.applyVisa);
 
-// Submit a renewal application (JSON only - documents reused from original)
-router.post('/renew', protect, visaController.renewVisa);
+// Submit a renewal application (with optional document/details updates)
+router.post('/renew', protect, upload.fields([
+  { name: 'passportDocument', maxCount: 1 },
+  { name: 'photoDocument', maxCount: 1 },
+  { name: 'supportingDocument', maxCount: 1 },
+  { name: 'admissionDocument', maxCount: 1 }
+]), visaController.renewVisa);
 
 // Visa Configs
 router.get('/config', visaConfigController.getConfigs);
@@ -38,7 +44,8 @@ router.get('/all', protect, officerOnly, visaController.getAllApplications);
 router.put('/:id/update', protect, upload.fields([
   { name: 'passportDocument', maxCount: 1 },
   { name: 'photoDocument', maxCount: 1 },
-  { name: 'supportingDocument', maxCount: 1 }
+  { name: 'supportingDocument', maxCount: 1 },
+  { name: 'admissionDocument', maxCount: 1 }
 ]), visaController.updateApplication);
 
 // Update status (Officer action)

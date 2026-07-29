@@ -20,7 +20,8 @@ import {
   Cog6ToothIcon,
   ChartBarIcon,
   TrashIcon,
-  PencilSquareIcon
+  PencilSquareIcon,
+  AcademicCapIcon
 } from '@heroicons/react/24/outline';
 
 const getDocumentUrl = (pathOrUrl) => {
@@ -1119,11 +1120,14 @@ const OfficerDashboard = () => {
                       )}
                       {borderApps.map((app) => {
                         const isOverstayed = app.entryStatus === 'Overstayed' || app.overstayAlert;
+                        const isNewOverstay = newlyDetectedOverstays.includes(app._id);
                         return (
                           <tr 
                             key={app._id} 
                             className={`transition-colors ${
-                              isOverstayed 
+                              isNewOverstay
+                                ? 'bg-red-100/80 hover:bg-red-200 border-l-4 border-red-500 animate-pulse shadow-sm'
+                                : isOverstayed 
                                 ? 'bg-red-50/80 border-l-4 border-l-red-600 hover:bg-red-100/80 shadow-sm' 
                                 : 'hover:bg-gray-50/50'
                             }`}
@@ -1131,11 +1135,15 @@ const OfficerDashboard = () => {
                             <td className="px-6 py-4">
                               <div className="font-bold text-gray-900 text-base capitalize flex items-center gap-2">
                                 {app.personalDetails?.firstName} {app.personalDetails?.lastName}
-                                {isOverstayed && (
+                                {isNewOverstay ? (
+                                  <span className="px-2 py-0.5 text-[10px] bg-red-600 text-white rounded-md font-bold uppercase tracking-widest shadow-sm shadow-red-500/30">
+                                    NEW
+                                  </span>
+                                ) : isOverstayed ? (
                                   <span className="px-2 py-0.5 text-[10px] bg-red-600 text-white rounded-md font-extrabold uppercase tracking-wider shadow-sm shadow-red-500/30">
                                     OVERSTAY
                                   </span>
-                                )}
+                                ) : null}
                               </div>
                             </td>
                             <td className="px-6 py-4 text-gray-500 font-mono font-bold uppercase">{app.personalDetails?.passportNumber}</td>
@@ -1200,7 +1208,13 @@ const OfficerDashboard = () => {
                       </tr>
                     ))}
                     {!loading && alertApps.length === 0 && (
-                      <tr><td colSpan="5" className="text-center py-10"><div className="inline-flex items-center justify-center space-x-2 text-red-400"><svg className="animate-spin h-5 w-5 text-red-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg><span className="font-medium animate-pulse">Loading alerts...</span></div></td></tr>
+                      <tr><td colSpan="5" className="px-6 py-16 text-center">
+                        <div className="flex flex-col items-center justify-center space-y-3 text-gray-400">
+                          <svg xmlns="http://www.w3.org/2000/svg" className="h-12 w-12 text-green-300" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                          <p className="font-semibold text-gray-500 text-base">{searchQuery.trim() ? `No overstay alerts found for "${searchQuery.trim()}"` : 'No active overstay alerts'}</p>
+                          <p className="text-sm text-gray-400">{searchQuery.trim() ? 'Try a different name or passport number.' : 'Run an overstay check to detect new violations.'}</p>
+                        </div>
+                      </td></tr>
                     )}
                   </tbody>
                 </table>
@@ -1237,6 +1251,24 @@ const OfficerDashboard = () => {
               <button onClick={() => { setSelectedApplication(null); setRejectionReason(''); }} className="text-white/70 hover:text-white text-xl">✕</button>
             </div>
             <div className="p-6 space-y-6 overflow-y-auto flex-1">
+              {selectedApplication.applicationType === 'Renewal' && (
+                <div className="bg-purple-50 p-4 rounded-xl border border-purple-200/80 space-y-1.5">
+                  <div className="flex items-center justify-between">
+                    <h5 className="font-extrabold text-purple-950 text-xs uppercase tracking-wider flex items-center gap-1.5">
+                      <span className="w-2 h-2 rounded-full bg-purple-600 animate-pulse"></span>
+                      Renewal Application — Updated Traveler Info
+                    </h5>
+                    {selectedApplication.linkedApplicationId && (
+                      <span className="text-[10px] font-bold text-purple-800 bg-purple-200/60 px-2.5 py-0.5 rounded-full font-mono">
+                        Parent ID: {selectedApplication.linkedApplicationId}
+                      </span>
+                    )}
+                  </div>
+                  <p className="text-xs text-purple-800 leading-relaxed">
+                    This dossier displays the traveler's latest updated details, lodging address, travel dates, and documents submitted specifically for this renewal application.
+                  </p>
+                </div>
+              )}
               <div>
                 <h4 className="text-xs font-bold uppercase tracking-wider text-gray-400 mb-3 border-b border-gray-100 pb-1">Personal Details</h4>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm">
@@ -1304,7 +1336,7 @@ const OfficerDashboard = () => {
               </div>
               <div>
                 <h4 className="text-xs font-bold uppercase tracking-wider text-gray-400 mb-3 border-b border-gray-100 pb-1">Documents & Artifacts</h4>
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs">
+                <div className={`grid grid-cols-1 sm:grid-cols-2 ${(selectedApplication.admissionDocument || (selectedApplication.visaType && selectedApplication.visaType.toLowerCase().includes('student'))) ? 'lg:grid-cols-4' : 'lg:grid-cols-3'} gap-3 text-xs`}>
                   <div className="bg-slate-50/80 p-3.5 rounded-xl border border-slate-200/80 shadow-sm hover:shadow-md hover:border-blue-200 transition-all flex flex-col justify-between">
                     <span className="text-gray-500 text-[11px] font-semibold block mb-2">Passport Scan</span>
                     {selectedApplication.passportDocument ? (
@@ -1344,6 +1376,21 @@ const OfficerDashboard = () => {
                       </a>
                     ) : <span className="text-gray-400 font-medium">N/A</span>}
                   </div>
+                  {(selectedApplication.admissionDocument || (selectedApplication.visaType && selectedApplication.visaType.toLowerCase().includes('student'))) && (
+                    <div className="bg-blue-50/80 p-3.5 rounded-xl border border-blue-200/80 shadow-sm hover:shadow-md hover:border-blue-300 transition-all flex flex-col justify-between ring-1 ring-blue-400/30">
+                      <span className="text-blue-900 text-[11px] font-bold block mb-2">Admission Acceptance Letter</span>
+                      {selectedApplication.admissionDocument ? (
+                        <a 
+                          href={getDocumentUrl(selectedApplication.admissionDocument)} 
+                          target="_blank" 
+                          rel="noreferrer" 
+                          className="inline-flex items-center justify-center gap-1.5 text-blue-700 hover:text-blue-900 font-bold bg-blue-100/80 hover:bg-blue-200/80 px-3 py-1.5 rounded-lg border border-blue-200 transition-colors w-full text-center"
+                        >
+                          <AcademicCapIcon className="w-4 h-4 text-blue-700 shrink-0" /> View Proof
+                        </a>
+                      ) : <span className="text-gray-400 font-medium">N/A</span>}
+                    </div>
+                  )}
                 </div>
               </div>
               

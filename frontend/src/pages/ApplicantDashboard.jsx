@@ -263,13 +263,17 @@ const ApplicantDashboard = () => {
                                   <span className="text-[11px] px-3 py-1 bg-amber-900/40 text-amber-300 border border-amber-700/50 font-bold rounded-lg italic">
                                     Renewal Processing
                                   </span>
-                                ) : (
+                                ) : (app.entryRecorded || app.renewalCount > 0 || (app.renewalHistory && app.renewalHistory.length > 0) || app.applicationType === 'Renewal' || app.linkedApplicationId || ['Entered', 'Overstayed', 'Exited'].includes(app.entryStatus)) ? (
                                   <button 
                                     onClick={() => window.location.href = `/apply?renew=true&id=${app._id}`}
                                     className="text-[10px] uppercase tracking-wider px-3.5 py-1.5 bg-blue-600 text-white hover:bg-blue-500 font-extrabold rounded-lg transition-all shadow-sm"
                                   >
                                     Renew Visa
                                   </button>
+                                ) : (
+                                  <span className="text-[11px] px-3 py-1 bg-slate-700/60 text-slate-400 border border-slate-600/50 font-semibold rounded-lg italic">
+                                    Entry Required to Renew
+                                  </span>
                                 )}
                               </div>
                             );
@@ -360,9 +364,11 @@ const ApplicantDashboard = () => {
                 <div>
                   <span className="text-gray-400 font-medium uppercase block">Duration of Stay</span>
                   <span className="text-sm font-bold text-gray-800">
-                    {selectedVisa.renewalHistory && selectedVisa.renewalHistory.length > 0
-                      ? selectedVisa.renewalHistory[selectedVisa.renewalHistory.length - 1].addedDays
-                      : (selectedVisa.stayDuration || selectedVisa.visaDuration || 30)} Days
+                    {selectedVisa.stayDuration
+                      ? `${selectedVisa.stayDuration} Days`
+                      : (selectedVisa.visaDuration
+                          ? `${selectedVisa.visaDuration} Days`
+                          : 'N/A')}
                     {selectedVisa.renewalCount > 0 && (
                       <span className="ml-2 text-[10px] bg-purple-100 text-purple-800 px-2 py-0.5 rounded font-extrabold">
                         {selectedVisa.renewalCount} RENEWAL{selectedVisa.renewalCount > 1 ? 'S' : ''}

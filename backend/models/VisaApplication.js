@@ -7,6 +7,7 @@ const visaApplicationSchema = new mongoose.Schema({
   passportNumber: { type: String }, // Top-level for easy DB visibility
   passportDocument: { type: String }, // URL/path to stored file
   supportingDocuments: [{ type: String }],
+  admissionDocument: { type: String }, // Proof of university/school admission acceptance for Student visas
   personalDetails: { type: Object },
   travelDetails: { type: Object },
   paymentStatus: { type: String, enum: ['Pending', 'Completed', 'Failed'], default: 'Pending' },

@@ -1,7 +1,7 @@
 import React, { useState, useContext, useEffect, useRef } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { AuthContext } from '../context/AuthContext';
-import { IdentificationIcon, CameraIcon, PaperAirplaneIcon, CreditCardIcon, CheckCircleIcon, ChevronDownIcon, CheckIcon } from '@heroicons/react/24/outline';
+import { IdentificationIcon, CameraIcon, PaperAirplaneIcon, CreditCardIcon, CheckCircleIcon, ChevronDownIcon, CheckIcon, AcademicCapIcon } from '@heroicons/react/24/outline';
 import axios from 'axios';
 import CountryAutocomplete from '../components/CountryAutocomplete';
 
@@ -330,6 +330,7 @@ const ApplyVisa = () => {
         if (fieldName === 'passportScanName') dataField = 'passportScanData';
         if (fieldName === 'selfieName') dataField = 'selfieData';
         if (fieldName === 'supportingDocName') dataField = 'supportingDocData';
+        if (fieldName === 'admissionDocName') dataField = 'admissionDocData';
         
         setFormData(prev => ({
           ...prev,
@@ -396,6 +397,11 @@ const ApplyVisa = () => {
 
   const finalizeApplication = async () => {
     setIsSubmitting(true);
+    const passportBlob = dataURItoBlob(formData.passportScanData);
+    const photoBlob = dataURItoBlob(formData.selfieData);
+    const supportBlob = dataURItoBlob(formData.supportingDocData);
+    const admissionBlob = dataURItoBlob(formData.admissionDocData);
+
     if (editId) {
       const formDataToSend = new FormData();
       formDataToSend.append('visaType', formData.visaType);
@@ -417,14 +423,10 @@ const ApplyVisa = () => {
         phone: formData.phone
       }));
 
-      const passportBlob = dataURItoBlob(formData.passportScanData);
       if (passportBlob) formDataToSend.append('passportDocument', passportBlob, formData.passportScanName);
-
-      const photoBlob = dataURItoBlob(formData.selfieData);
       if (photoBlob) formDataToSend.append('photoDocument', photoBlob, formData.selfieName);
-
-      const supportBlob = dataURItoBlob(formData.supportingDocData);
       if (supportBlob) formDataToSend.append('supportingDocument', supportBlob, formData.supportingDocName);
+      if (admissionBlob) formDataToSend.append('admissionDocument', admissionBlob, formData.admissionDocName);
 
       try {
         const res = await axios.put(`/api/visa/${editId}/update`, formDataToSend, {
@@ -446,18 +448,39 @@ const ApplyVisa = () => {
         setIsSubmitting(false);
       }
     } else if (renewId) {
-       const renewData = {
-          linkedApplicationId: renewId,
-          visaType: formData.visaType,
-          visaDuration: formData.duration,
-          amountPaid: amountDue,
-          paymentMethod: formData.paymentMethod,
-          paymentStatus: formData.paymentMethod === 'Bank Transfer' ? 'Pending' : 'Completed'
-       };
+       const renewFormData = new FormData();
+       renewFormData.append('linkedApplicationId', renewId);
+       renewFormData.append('visaType', formData.visaType);
+       renewFormData.append('visaDuration', formData.duration);
+       renewFormData.append('amountPaid', amountDue);
+       renewFormData.append('paymentMethod', formData.paymentMethod);
+       renewFormData.append('paymentStatus', formData.paymentMethod === 'Bank Transfer' ? 'Pending' : 'Completed');
+       renewFormData.append('purposeOfTravel', formData.purpose || 'Renewal');
+       renewFormData.append('personalDetails', JSON.stringify({
+         firstName: formData.firstName,
+         lastName: formData.lastName,
+         passportNumber: formData.passportNumber,
+         nationality: formData.nationality,
+         passportExpiry: formData.passportExpiry,
+         phone: formData.phone,
+         email: formData.email
+       }));
+       renewFormData.append('travelDetails', JSON.stringify({
+         arrivalDate: formData.arrivalDate,
+         departureDate: formData.departureDate,
+         hostAddress: formData.hostAddress || formData.address || '',
+         phone: formData.phone
+       }));
+
+       if (passportBlob) renewFormData.append('passportDocument', passportBlob, formData.passportScanName);
+       if (photoBlob) renewFormData.append('photoDocument', photoBlob, formData.selfieName);
+       if (supportBlob) renewFormData.append('supportingDocument', supportBlob, formData.supportingDocName);
+       if (admissionBlob) renewFormData.append('admissionDocument', admissionBlob, formData.admissionDocName);
+
        try {
-        const res = await axios.post(`/api/visa/renew`, renewData, {
+        const res = await axios.post(`/api/visa/renew`, renewFormData, {
           headers: {
-            'Content-Type': 'application/json',
+            'Content-Type': 'multipart/form-data',
             'Authorization': `Bearer ${token}`
           }
         });
@@ -496,14 +519,10 @@ const ApplyVisa = () => {
         phone: formData.phone
       }));
 
-      const passportBlob = dataURItoBlob(formData.passportScanData);
       if (passportBlob) formDataToSend.append('passportDocument', passportBlob, formData.passportScanName);
-
-      const photoBlob = dataURItoBlob(formData.selfieData);
       if (photoBlob) formDataToSend.append('photoDocument', photoBlob, formData.selfieName);
-
-      const supportBlob = dataURItoBlob(formData.supportingDocData);
       if (supportBlob) formDataToSend.append('supportingDocument', supportBlob, formData.supportingDocName);
+      if (admissionBlob) formDataToSend.append('admissionDocument', admissionBlob, formData.admissionDocName);
 
       try {
         const res = await axios.post('/api/visa/apply', formDataToSend, {
@@ -890,13 +909,8 @@ const ApplyVisa = () => {
                             description: `Visa fee · $${opt.price} USD`,
                             icon: calIcon,
                           }))
-                        : [30, 60, 90].map(d => ({
-                            value: String(d),
-                            label: `${d} Days`,
-                            description: 'Standard duration',
-                            icon: calIcon,
-                          }));
-                      return (
+                        : [];
+                      return durationOptions.length > 0 ? (
                         <CustomSelect
                           name="duration"
                           value={formData.duration}
@@ -904,6 +918,25 @@ const ApplyVisa = () => {
                           options={durationOptions}
                           placeholder={formData.visaType ? 'Select duration of stay' : 'Select visa type first'}
                           disabled={!formData.visaType}
+                          required
+                        />
+                      ) : formData.visaType ? (
+                        <div className="flex items-center gap-3 p-4 rounded-xl border-2 border-dashed border-amber-300 bg-amber-50/60 text-amber-800">
+                          <svg className="w-5 h-5 flex-shrink-0 text-amber-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                          </svg>
+                          <p className="text-xs font-semibold leading-snug">
+                            No duration options have been configured by the Administrator for <strong>{formData.visaType}</strong> visas yet. Please contact the Immigration Office.
+                          </p>
+                        </div>
+                      ) : (
+                        <CustomSelect
+                          name="duration"
+                          value={formData.duration}
+                          onChange={handleChange}
+                          options={[]}
+                          placeholder="Select visa type first"
+                          disabled
                           required
                         />
                       );
@@ -1104,9 +1137,11 @@ const ApplyVisa = () => {
                   );
                 };
 
+                const isStudentVisa = formData.visaType && formData.visaType.toLowerCase().includes('student');
+
                 return (
                   <div className="space-y-6 animate-fadeIn">
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                    <div className={`grid grid-cols-1 ${isStudentVisa ? 'md:grid-cols-2 lg:grid-cols-4' : 'md:grid-cols-3'} gap-6`}>
                       
                       {/* Passport upload block */}
                       <div className="border border-dashed border-gray-300 hover:border-primary rounded-2xl p-6 text-center transition-all bg-gray-50/50 hover:bg-white relative flex flex-col justify-between items-center">
@@ -1171,6 +1206,29 @@ const ApplyVisa = () => {
                         </div>
                       </div>
 
+                      {/* Student Visa ONLY: Admission Acceptance Proof upload block */}
+                      {isStudentVisa && (
+                        <div className="border border-dashed border-blue-400 hover:border-primary rounded-2xl p-6 text-center transition-all bg-blue-50/40 hover:bg-white relative flex flex-col justify-between items-center ring-2 ring-blue-500/20">
+                          <input 
+                            type="file" 
+                            accept="application/pdf,image/*"
+                            required={!formData.admissionDocName}
+                            onChange={(e) => handleFileChange(e, 'admissionDocName')}
+                            className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
+                          />
+                          <div className="space-y-3 w-full">
+                            <AcademicCapIcon className="w-10 h-10 mx-auto text-blue-600" />
+                            <h4 className="font-bold text-gray-800 text-sm">Admission Acceptance Proof</h4>
+                            <p className="text-xs text-gray-500 leading-relaxed px-2">
+                              Upload proof of university/school admission acceptance. Max size 5MB.
+                            </p>
+                            <div className="pt-1 flex justify-center w-full">
+                              {renderDocBadge(formData.admissionDocName)}
+                            </div>
+                          </div>
+                        </div>
+                      )}
+
                     </div>
                   </div>
                 );
@@ -1215,6 +1273,12 @@ const ApplyVisa = () => {
                         <span className="block text-[10px] text-gray-400 uppercase font-extrabold tracking-wider">Bank Statements</span>
                         <span className="font-semibold text-emerald-600 text-sm">{formData.supportingDocName ? `✓ ${formData.supportingDocName}` : 'Missing'}</span>
                       </div>
+                      {formData.visaType && formData.visaType.toLowerCase().includes('student') && (
+                        <div>
+                          <span className="block text-[10px] text-gray-400 uppercase font-extrabold tracking-wider">Admission Acceptance Proof</span>
+                          <span className="font-semibold text-emerald-600 text-sm">{formData.admissionDocName ? `✓ ${formData.admissionDocName}` : 'Missing'}</span>
+                        </div>
+                      )}
                     </div>
                   </div>
 

@@ -63,11 +63,13 @@ exports.applyVisa = async (req, res) => {
     const passportFile = req.files && req.files.passportDocument ? req.files.passportDocument[0] : null;
     const photoFile = req.files && req.files.photoDocument ? req.files.photoDocument[0] : null;
     const supportingFile = req.files && req.files.supportingDocument ? req.files.supportingDocument[0] : null;
+    const admissionFile = req.files && req.files.admissionDocument ? req.files.admissionDocument[0] : null;
 
-    const [passportDocument, photoDocument, supportingDocument] = await Promise.all([
+    const [passportDocument, photoDocument, supportingDocument, admissionDocument] = await Promise.all([
       uploadToImageKit(passportFile),
       uploadToImageKit(photoFile),
-      uploadToImageKit(supportingFile)
+      uploadToImageKit(supportingFile),
+      uploadToImageKit(admissionFile)
     ]);
 
     // Parse JSON details if sent as strings (via FormData)
@@ -83,7 +85,21 @@ exports.applyVisa = async (req, res) => {
     // ---------------------------------------
 
     const vType = visaType || 'Tourism';
-    const vDuration = visaDuration ? Number(visaDuration) : 30;
+    // Always resolve duration from admin VisaConfig — never use hardcoded fallback
+    const requestedDuration = visaDuration ? Number(visaDuration) : null;
+    let vDuration = requestedDuration;
+    {
+      const appConfig = await VisaConfig.findOne({ visaType: vType });
+      if (appConfig && appConfig.options && appConfig.options.length > 0) {
+        // Find exact match or take the first configured option as default
+        const matchedOption = requestedDuration
+          ? appConfig.options.find(o => o.duration === requestedDuration)
+          : null;
+        vDuration = matchedOption ? matchedOption.duration : (requestedDuration || appConfig.options[0].duration);
+      } else if (!vDuration) {
+        vDuration = 30; // Last-resort fallback when admin has not configured anything yet
+      }
+    }
     
     // Validate amount against config
     let expectedAmount = 50; // Fallback
@@ -104,6 +120,7 @@ exports.applyVisa = async (req, res) => {
       passportNumber: passportNumber || '',
       passportDocument,
       supportingDocuments: [photoDocument, supportingDocument].filter(Boolean),
+      admissionDocument,
       personalDetails: parsedPersonalDetails || {},
       travelDetails: parsedTravelDetails || {},
       paymentStatus: paymentStatus || 'Completed', 
@@ -148,11 +165,11 @@ exports.applyVisa = async (req, res) => {
     res.status(201).json({ success: true, application: savedApplication });
   } catch (error) {
     console.error('Error applying for visa:', error);
-    res.status(500).json({ success: false, message: 'Server error creating visa application: ' + error.message });
+    res.status(500).json({ success: false, message: 'Server error applying for visa' });
   }
 };
 
-// Renew a Visa
+// Renewal Endpoint
 exports.renewVisa = async (req, res) => {
   try {
     const {
@@ -161,7 +178,10 @@ exports.renewVisa = async (req, res) => {
       visaDuration,
       amountPaid,
       paymentMethod,
-      paymentStatus
+      paymentStatus,
+      purposeOfTravel,
+      personalDetails,
+      travelDetails
     } = req.body;
 
     const originalApp = await VisaApplication.findById(linkedApplicationId);
@@ -169,7 +189,36 @@ exports.renewVisa = async (req, res) => {
       return res.status(404).json({ success: false, message: 'Original application not found or unauthorized.' });
     }
 
-    const vDuration = visaDuration ? Number(visaDuration) : 30;
+    // Upload any updated documents provided during renewal
+    const passportFile = req.files && req.files.passportDocument ? req.files.passportDocument[0] : null;
+    const photoFile = req.files && req.files.photoDocument ? req.files.photoDocument[0] : null;
+    const supportingFile = req.files && req.files.supportingDocument ? req.files.supportingDocument[0] : null;
+    const admissionFile = req.files && req.files.admissionDocument ? req.files.admissionDocument[0] : null;
+
+    const [passportDocument, photoDocument, supportingDocument, admissionDocument] = await Promise.all([
+      uploadToImageKit(passportFile),
+      uploadToImageKit(photoFile),
+      uploadToImageKit(supportingFile),
+      uploadToImageKit(admissionFile)
+    ]);
+
+    const parsedPersonal = personalDetails ? (typeof personalDetails === 'string' ? JSON.parse(personalDetails) : personalDetails) : originalApp.personalDetails;
+    const parsedTravel = travelDetails ? (typeof travelDetails === 'string' ? JSON.parse(travelDetails) : travelDetails) : originalApp.travelDetails;
+
+    // Always resolve duration from admin VisaConfig — never use hardcoded fallback
+    const requestedRenewalDuration = visaDuration ? Number(visaDuration) : null;
+    let vDuration = requestedRenewalDuration;
+    {
+      const renewConfig = await VisaConfig.findOne({ visaType: visaType || originalApp.visaType });
+      if (renewConfig && renewConfig.options && renewConfig.options.length > 0) {
+        const matchedOption = requestedRenewalDuration
+          ? renewConfig.options.find(o => o.duration === requestedRenewalDuration)
+          : null;
+        vDuration = matchedOption ? matchedOption.duration : (requestedRenewalDuration || renewConfig.options[0].duration);
+      } else if (!vDuration) {
+        vDuration = 30; // Last-resort fallback when admin has not configured anything yet
+      }
+    }
     
     // Config validation
     let expectedAmount = 50;
@@ -183,12 +232,16 @@ exports.renewVisa = async (req, res) => {
     const renewalApp = new VisaApplication({
       applicantId: req.user._id,
       visaType: visaType || originalApp.visaType,
-      purposeOfTravel: 'Renewal',
-      passportNumber: originalApp.passportNumber,
-      passportDocument: originalApp.passportDocument,
-      supportingDocuments: originalApp.supportingDocuments,
-      personalDetails: originalApp.personalDetails,
-      travelDetails: originalApp.travelDetails,
+      purposeOfTravel: purposeOfTravel || originalApp.purposeOfTravel || 'Renewal',
+      passportNumber: parsedPersonal?.passportNumber || originalApp.passportNumber,
+      passportDocument: passportDocument || originalApp.passportDocument,
+      supportingDocuments: [
+        photoDocument || (originalApp.supportingDocuments && originalApp.supportingDocuments[0]),
+        supportingDocument || (originalApp.supportingDocuments && originalApp.supportingDocuments[1])
+      ].filter(Boolean),
+      admissionDocument: admissionDocument || originalApp.admissionDocument,
+      personalDetails: parsedPersonal,
+      travelDetails: parsedTravel,
       paymentStatus: paymentStatus || 'Completed', 
       paymentDetails: {
         amountPaid: finalAmount,
@@ -308,8 +361,13 @@ exports.getMyApplications = async (req, res) => {
     const applications = await VisaApplication.find({ applicantId: req.user._id })
       .select('-scannedHistory')
       .sort({ createdAt: -1 })
-      .lean();
-    res.json({ success: true, applications });
+    const formattedApps = applications.map(app => {
+      if (app.entryDate || app.renewalCount > 0 || (app.renewalHistory && app.renewalHistory.length > 0) || ['Entered', 'Overstayed', 'Exited'].includes(app.entryStatus)) {
+        app.entryRecorded = true;
+      }
+      return app;
+    });
+    res.json({ success: true, applications: formattedApps });
   } catch (error) {
     console.error('Error fetching applicant visas:', error);
     res.status(500).json({ success: false, message: 'Server error fetching applications' });
@@ -417,25 +475,49 @@ exports.updateStatus = async (req, res) => {
     application.officerId = req.user._id;
 
     if (status === 'Approved') {
-      const duration = visaDuration ? parseInt(visaDuration) : (application.visaDuration || 30);
+      // --- Resolve duration from admin VisaConfig first, fallback to stored value ---
+      let duration = visaDuration ? parseInt(visaDuration) : (application.visaDuration || 30);
+      {
+        const statusConfig = await VisaConfig.findOne({ visaType: application.visaType });
+        if (statusConfig && statusConfig.options && statusConfig.options.length > 0) {
+          const matchedOpt = statusConfig.options.find(o => o.duration === duration);
+          if (matchedOpt) {
+            duration = matchedOpt.duration; // confirmed from config
+          } else {
+            // duration sent doesn't match any config option — use the stored value as-is but log a warning
+            console.warn(`[updateStatus] Duration ${duration} not found in VisaConfig for ${application.visaType}. Using stored value.`);
+          }
+        }
+      }
       application.visaDuration = duration;
       application.stayDuration = duration;
 
-      // Handle Renewal approval: extend parent application in-place and set renewal status to Active
+      // --- Handle Renewal approval: extend parent visa in-place, NO new border entry record ---
       if (application.linkedApplicationId || application.applicationType === 'Renewal') {
+        // Mark the renewal sub-application as processed (Active) but do NOT create a border entry.
+        // The applicant is already inside the country; their original entry record stands.
         application.applicationStatus = 'Active';
-        application.entryRecorded = true;
-        application.entryStatus = 'Entered';
+        // NOTE: Do NOT set entryRecorded=true or entryStatus='Entered' on the renewal sub-app.
+        //       Border entry was already recorded on the original/parent application.
+
         const parentApp = await VisaApplication.findById(application.linkedApplicationId);
         if (parentApp) {
-          const oldExpiry = parentApp.stayExpiryDate ? new Date(parentApp.stayExpiryDate) : new Date();
+          // Calculate remaining days on the parent visa from now
+          const now = new Date();
+          const currentExpiry = parentApp.stayExpiryDate || parentApp.expirationDate;
+          const remainingMs = currentExpiry ? (new Date(currentExpiry) - now) : 0;
+          const remainingDays = Math.max(0, Math.ceil(remainingMs / (24 * 60 * 60 * 1000)));
+
+          // New expiry = current expiry + renewal duration (preserves unused remaining days)
+          const oldExpiry = currentExpiry ? new Date(currentExpiry) : now;
           const newExpiry = new Date(oldExpiry.getTime() + duration * 24 * 60 * 60 * 1000);
+          const totalRemainingDays = remainingDays + duration;
 
           parentApp.stayExpiryDate = newExpiry;
           parentApp.expirationDate = newExpiry;
-          // Store only the newly chosen renewal duration, not a cumulative total
-          parentApp.stayDuration = duration;
-          parentApp.visaDuration = duration;
+          // stayDuration reflects total remaining permitted days after this renewal
+          parentApp.stayDuration = totalRemainingDays;
+          parentApp.visaDuration = duration; // records what this renewal added
           if (application.visaType) {
             parentApp.visaType = application.visaType;
           }
@@ -443,14 +525,14 @@ exports.updateStatus = async (req, res) => {
           parentApp.renewalCount = (parentApp.renewalCount || 0) + 1;
           if (!parentApp.renewalHistory) parentApp.renewalHistory = [];
           parentApp.renewalHistory.push({
-            renewedAt: new Date(),
+            renewedAt: now,
             addedDays: duration,
             oldExpiryDate: oldExpiry,
             newExpiryDate: newExpiry,
             approvedBy: req.user.fullName || 'Officer'
           });
 
-          // Regenerate the official PDF approval letter for the parent application with updated renewal information
+          // Regenerate the official PDF approval letter for the parent application with updated renewal info
           try {
             const pdfPath = await generateVisaPdf(parentApp);
             parentApp.pdfUrl = pdfPath;
@@ -475,6 +557,18 @@ exports.updateStatus = async (req, res) => {
           } catch (qrErr) {
             console.error('Error regenerating QR code for renewed visa:', qrErr);
           }
+
+          // Copy first entry & updated stay expiry details onto the renewal sub-application so scanner & token verification get exact dates
+          application.entryRecorded = parentApp.entryRecorded || true;
+          application.entryStatus = parentApp.entryStatus || 'Entered';
+          application.entryDate = parentApp.entryDate;
+          application.entryOfficer = parentApp.entryOfficer;
+          application.entryPort = parentApp.entryPort;
+          application.stayExpiryDate = newExpiry;
+          application.expirationDate = newExpiry;
+          application.stayDuration = totalRemainingDays;
+          application.renewalHistory = parentApp.renewalHistory;
+          application.renewalCount = parentApp.renewalCount;
 
           await parentApp.save();
         }
@@ -735,6 +829,29 @@ exports.recordEntry = async (req, res) => {
     
     const updated = await application.save();
 
+    // Sync entry details to parent or child renewals
+    if (application.linkedApplicationId) {
+      await VisaApplication.findByIdAndUpdate(application.linkedApplicationId, {
+        entryRecorded: true,
+        entryStatus: 'Entered',
+        entryDate,
+        stayExpiryDate,
+        expirationDate: stayExpiryDate,
+        entryOfficer: application.entryOfficer,
+        entryPort: application.entryPort
+      });
+    } else {
+      await VisaApplication.updateMany({ linkedApplicationId: application._id }, {
+        entryRecorded: true,
+        entryStatus: 'Entered',
+        entryDate,
+        stayExpiryDate,
+        expirationDate: stayExpiryDate,
+        entryOfficer: application.entryOfficer,
+        entryPort: application.entryPort
+      });
+    }
+
     if (req.user) {
       await ActivityLog.create({
         officerId: req.user._id,
@@ -774,6 +891,19 @@ exports.recordExit = async (req, res) => {
     
     const updated = await application.save();
 
+    // Sync exit details to parent or child renewals
+    if (application.linkedApplicationId) {
+      await VisaApplication.findByIdAndUpdate(application.linkedApplicationId, {
+        entryStatus: 'Exited',
+        exitDate: application.exitDate
+      });
+    } else {
+      await VisaApplication.updateMany({ linkedApplicationId: application._id }, {
+        entryStatus: 'Exited',
+        exitDate: application.exitDate
+      });
+    }
+
     if (req.user) {
       await ActivityLog.create({
         officerId: req.user._id,
@@ -798,12 +928,15 @@ exports.checkOverstays = async (req, res) => {
     const now = new Date();
     
     const overstayedApps = await VisaApplication.find({
-      entryStatus: 'Entered', 
+      entryStatus: 'Entered',
       $or: [
         { stayExpiryDate: { $lt: now } },
+        // Catch records where stayExpiryDate is null OR completely absent (old records)
+        // $exists: false alone misses null values; this covers both cases
+        { stayExpiryDate: { $in: [null] }, expirationDate: { $lt: now } },
         { stayExpiryDate: { $exists: false }, expirationDate: { $lt: now } }
       ],
-      overstayAlert: { $ne: true } 
+      overstayAlert: { $ne: true }
     }).select('_id');
 
     const newOverstayIds = overstayedApps.map(app => app._id);
@@ -853,6 +986,12 @@ exports.verifyVisaToken = async (req, res) => {
       return res.status(404).json({ success: false, message: 'Invalid or unrecognized visa token.' });
     }
 
+    // If this application is linked to a parent application (renewal sub-app) or if parent app exists
+    let parentApp = null;
+    if (application.linkedApplicationId) {
+      parentApp = await VisaApplication.findById(application.linkedApplicationId);
+    }
+
     const isOfficer = req.user && req.user.role === 'officer';
 
     if (isOfficer) {
@@ -864,29 +1003,53 @@ exports.verifyVisaToken = async (req, res) => {
       await application.save();
     }
 
+    const appObj = application.toObject ? application.toObject() : JSON.parse(JSON.stringify(application));
+
+    // Resolve entryRecorded, entryDate, stayExpiryDate from parent if present
+    const firstEntryDate = appObj.entryDate || parentApp?.entryDate || null;
+    const entryPort = appObj.entryPort || parentApp?.entryPort || 'Mogadishu Intl Airport';
+    const entryOfficer = appObj.entryOfficer || parentApp?.entryOfficer || 'Border Control';
+    const entryStatus = appObj.entryStatus || parentApp?.entryStatus || 'Entered';
+    const stayExpiryDate = appObj.stayExpiryDate || parentApp?.stayExpiryDate || appObj.expirationDate || parentApp?.expirationDate || null;
+    const stayDuration = appObj.stayDuration || parentApp?.stayDuration || appObj.visaDuration || 30;
+    const renewalHistory = (appObj.renewalHistory && appObj.renewalHistory.length > 0)
+      ? appObj.renewalHistory
+      : (parentApp?.renewalHistory || []);
+    const renewalCount = appObj.renewalCount || parentApp?.renewalCount || renewalHistory.length;
+
+    const isEntryRecorded = !!appObj.entryRecorded || !!parentApp?.entryRecorded || !!firstEntryDate || renewalCount > 0 || ['Entered', 'Overstayed', 'Exited'].includes(entryStatus);
+
     const now = new Date();
     let isExpired = false;
     let remainingDays = 0;
 
-    if (!application.entryRecorded) {
+    if (!isEntryRecorded) {
       // Pre-entry: check entry validity window
-      const validUntil = application.entryValidUntil || application.validUntilDate;
+      const validUntil = appObj.entryValidUntil || appObj.validUntilDate;
       if (validUntil && now > new Date(validUntil)) {
         isExpired = true;
       }
     } else {
       // Post-entry: check stay expiry date
-      const stayExp = application.stayExpiryDate || application.expirationDate;
-      if (stayExp) {
-        if (now > new Date(stayExp)) {
+      if (stayExpiryDate) {
+        if (now > new Date(stayExpiryDate)) {
           isExpired = true;
+          remainingDays = 0;
         } else {
-          remainingDays = Math.ceil((new Date(stayExp) - now) / (1000 * 60 * 60 * 24));
+          remainingDays = Math.max(0, Math.ceil((new Date(stayExpiryDate) - now) / (1000 * 60 * 60 * 24)));
         }
       }
     }
 
-    const appObj = application.toObject ? application.toObject() : JSON.parse(JSON.stringify(application));
+    appObj.entryRecorded = isEntryRecorded;
+    appObj.entryDate = firstEntryDate;
+    appObj.entryPort = entryPort;
+    appObj.entryOfficer = entryOfficer;
+    appObj.entryStatus = entryStatus;
+    appObj.stayExpiryDate = stayExpiryDate;
+    appObj.stayDuration = stayDuration;
+    appObj.renewalHistory = renewalHistory;
+    appObj.renewalCount = renewalCount;
     appObj.isExpired = isExpired;
     appObj.remainingDays = remainingDays;
 
