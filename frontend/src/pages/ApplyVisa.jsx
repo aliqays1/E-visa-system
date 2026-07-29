@@ -447,39 +447,37 @@ const ApplyVisa = () => {
         setIsSubmitting(false);
       }
     } else if (renewId) {
-       const renewFormData = new FormData();
-       renewFormData.append('linkedApplicationId', renewId);
-       renewFormData.append('visaType', formData.visaType);
-       renewFormData.append('visaDuration', formData.duration);
-       renewFormData.append('amountPaid', amountDue);
-       renewFormData.append('paymentMethod', formData.paymentMethod);
-       renewFormData.append('paymentStatus', formData.paymentMethod === 'Bank Transfer' ? 'Pending' : 'Completed');
-       renewFormData.append('purposeOfTravel', formData.purpose || 'Renewal');
-       renewFormData.append('personalDetails', JSON.stringify({
-         firstName: formData.firstName,
-         lastName: formData.lastName,
-         passportNumber: formData.passportNumber,
-         nationality: formData.nationality,
-         passportExpiry: formData.passportExpiry,
-         phone: formData.phone,
-         email: formData.email
-       }));
-       renewFormData.append('travelDetails', JSON.stringify({
-         arrivalDate: formData.arrivalDate,
-         departureDate: formData.departureDate,
-         hostAddress: formData.hostAddress || formData.address || '',
-         phone: formData.phone
-       }));
+      // Renewals send JSON (documents are inherited from the original application)
+      const renewPayload = {
+        linkedApplicationId: renewId,
+        visaType: formData.visaType,
+        visaDuration: formData.duration,
+        amountPaid: amountDue,
+        paymentMethod: formData.paymentMethod,
+        paymentStatus: formData.paymentMethod === 'Bank Transfer' ? 'Pending' : 'Completed',
+        purposeOfTravel: formData.purpose || 'Renewal',
+        personalDetails: {
+          firstName: formData.firstName,
+          lastName: formData.lastName,
+          passportNumber: formData.passportNumber,
+          nationality: formData.nationality,
+          passportExpiry: formData.passportExpiry,
+          phone: formData.phone,
+          email: formData.email
+        },
+        travelDetails: {
+          arrivalDate: formData.arrivalDate,
+          departureDate: formData.departureDate,
+          hostAddress: formData.hostAddress || formData.address || '',
+          phone: formData.phone
+        }
+      };
 
-       if (passportBlob) renewFormData.append('passportDocument', passportBlob, formData.passportScanName);
-       if (photoBlob) renewFormData.append('photoDocument', photoBlob, formData.selfieName);
-       if (supportBlob) renewFormData.append('supportingDocument', supportBlob, formData.supportingDocName);
-       if (admissionBlob) renewFormData.append('admissionDocument', admissionBlob, formData.admissionDocName);
-
-       try {
-        const res = await axios.post(`/api/visa/renew`, renewFormData, {
+      try {
+        const res = await axios.post('/api/visa/renew', renewPayload, {
           headers: {
-            'Authorization': `Bearer ${token}`
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
           }
         });
         if (res.data.success) {

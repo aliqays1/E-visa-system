@@ -13,13 +13,8 @@ router.post('/apply', protect, upload.fields([
   { name: 'admissionDocument', maxCount: 1 }
 ]), visaController.applyVisa);
 
-// Submit a renewal application (with optional document/details updates)
-router.post('/renew', protect, upload.fields([
-  { name: 'passportDocument', maxCount: 1 },
-  { name: 'photoDocument', maxCount: 1 },
-  { name: 'supportingDocument', maxCount: 1 },
-  { name: 'admissionDocument', maxCount: 1 }
-]), visaController.renewVisa);
+// Submit a renewal application — inherits documents from original, no new file upload needed
+router.post('/renew', protect, visaController.renewVisa);
 
 // Visa Configs
 router.get('/config', visaConfigController.getConfigs);

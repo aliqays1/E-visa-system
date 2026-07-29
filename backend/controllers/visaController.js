@@ -196,18 +196,11 @@ exports.renewVisa = async (req, res) => {
       return res.status(404).json({ success: false, message: 'Original application not found or unauthorized.' });
     }
 
-    // Upload any updated documents provided during renewal
-    const passportFile = req.files && req.files.passportDocument ? req.files.passportDocument[0] : null;
-    const photoFile = req.files && req.files.photoDocument ? req.files.photoDocument[0] : null;
-    const supportingFile = req.files && req.files.supportingDocument ? req.files.supportingDocument[0] : null;
-    const admissionFile = req.files && req.files.admissionDocument ? req.files.admissionDocument[0] : null;
-
-    const [passportDocument, photoDocument, supportingDocument, admissionDocument] = await Promise.all([
-      uploadToImageKit(passportFile),
-      uploadToImageKit(photoFile),
-      uploadToImageKit(supportingFile),
-      uploadToImageKit(admissionFile)
-    ]);
+    // Renewal inherits all documents from the original application (no new uploads on renewal)
+    const passportDocument = null;
+    const photoDocument = null;
+    const supportingDocument = null;
+    const admissionDocument = null;
 
     const parsedPersonal = personalDetails ? (typeof personalDetails === 'string' ? JSON.parse(personalDetails) : personalDetails) : originalApp.personalDetails;
     const parsedTravel = travelDetails ? (typeof travelDetails === 'string' ? JSON.parse(travelDetails) : travelDetails) : originalApp.travelDetails;
