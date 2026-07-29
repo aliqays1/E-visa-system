@@ -110,7 +110,10 @@ exports.applyVisa = async (req, res) => {
     }
     const finalAmount = amountPaid ? Number(amountPaid) : 0;
     if (finalAmount < expectedAmount) {
-       // Just a warning for now, or could reject. Let's accept it but we know the actual amount
+       return res.status(400).json({
+          success: false,
+          message: `Payment amount must be ${expectedAmount}`
+       });
     }
 
     const newApplication = new VisaApplication({
@@ -182,7 +185,11 @@ exports.renewVisa = async (req, res) => {
       purposeOfTravel,
       personalDetails,
       travelDetails
-    } = req.body;
+    } = req.body || {};
+
+    if (!linkedApplicationId) {
+      return res.status(400).json({ success: false, message: 'Parent visa ID (linkedApplicationId) is required for renewal.' });
+    }
 
     const originalApp = await VisaApplication.findById(linkedApplicationId);
     if (!originalApp || originalApp.applicantId.toString() !== req.user._id.toString()) {

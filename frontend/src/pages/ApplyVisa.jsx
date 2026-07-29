@@ -431,7 +431,6 @@ const ApplyVisa = () => {
       try {
         const res = await axios.put(`/api/visa/${editId}/update`, formDataToSend, {
           headers: {
-            'Content-Type': 'multipart/form-data',
             'Authorization': `Bearer ${token}`
           }
         });
@@ -480,7 +479,6 @@ const ApplyVisa = () => {
        try {
         const res = await axios.post(`/api/visa/renew`, renewFormData, {
           headers: {
-            'Content-Type': 'multipart/form-data',
             'Authorization': `Bearer ${token}`
           }
         });
@@ -527,7 +525,6 @@ const ApplyVisa = () => {
       try {
         const res = await axios.post('/api/visa/apply', formDataToSend, {
           headers: {
-            'Content-Type': 'multipart/form-data',
             'Authorization': `Bearer ${token}`
           }
         });
@@ -963,14 +960,16 @@ const ApplyVisa = () => {
                   )}
 
                   <div>
-                    <label className="block text-sm font-semibold text-gray-700 mb-2 tracking-wide">Purpose of Travel</label>
+                    <label className="block text-sm font-semibold text-gray-700 mb-2 tracking-wide">
+                      {renewId ? 'Purpose of Travel (e.g. why staying longer than your visa now)' : 'Purpose of Travel'}
+                    </label>
                     <textarea 
                       name="purpose" 
                       required 
                       value={formData.purpose} 
                       onChange={handleChange} 
                       rows="4" 
-                      placeholder="Please briefly describe your specific travel plans and purpose..." 
+                      placeholder={renewId ? 'e.g. why staying longer than your visa now' : 'Please briefly describe your specific travel plans and purpose...'} 
                       className="w-full px-4 py-3.5 rounded-xl border border-gray-200/80 bg-gray-50/50 hover:bg-white focus:bg-white focus:ring-2 focus:ring-slate-800/20 focus:border-slate-800 text-gray-800"
                     ></textarea>
                   </div>

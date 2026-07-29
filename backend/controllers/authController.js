@@ -39,7 +39,7 @@ exports.registerUser = async (req, res) => {
         fullName,
         email,
         password: hashedPassword,
-        role: role || 'applicant',
+        role: 'applicant',
         phone,
         nationality
       });
@@ -69,7 +69,7 @@ exports.registerUser = async (req, res) => {
       email,
       code,
       type: 'register',
-      userData: { fullName, password, role, phone, nationality },
+      userData: { fullName, password, role: 'applicant', phone, nationality },
       expiresAt
     });
 
@@ -108,7 +108,7 @@ exports.verifyRegisterOtp = async (req, res) => {
       return res.status(400).json({ message: 'Invalid or expired verification code' });
     }
 
-    const { fullName, password, role, phone, nationality } = verification.userData;
+    const { fullName, password, phone, nationality } = verification.userData;
 
     const salt = await bcrypt.genSalt(10);
     const hashedPassword = await bcrypt.hash(password, salt);
@@ -117,7 +117,7 @@ exports.verifyRegisterOtp = async (req, res) => {
       fullName,
       email,
       password: hashedPassword,
-      role: role || 'applicant',
+      role: 'applicant',
       phone,
       nationality
     });

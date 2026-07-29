@@ -58,5 +58,6 @@ const visaApplicationSchema = new mongoose.Schema({
 // Add composite or nested indexes
 visaApplicationSchema.index({ createdAt: -1 });
 visaApplicationSchema.index({ 'personalDetails.email': 1 });
+visaApplicationSchema.index({ linkedApplicationId: 1 });
 
 module.exports = mongoose.model('VisaApplication', visaApplicationSchema);
