@@ -680,10 +680,18 @@ const OfficerDashboard = () => {
       if (res.data.success) {
         alert(`Application status successfully updated to ${newStatus}!`);
         const updatedApp = res.data.application || { ...selectedApplication, applicationStatus: newStatus };
+        // Update local state instantly — no full re-fetch needed
         setApplications(prev => prev.map(app => app._id === id ? updatedApp : app));
+        setStats(prev => prev ? {
+          ...prev,
+          pending: newStatus === 'Approved' || newStatus === 'Rejected' || newStatus === 'Needs Revision'
+            ? Math.max(0, (prev.pending || 1) - 1)
+            : prev.pending,
+          approved: newStatus === 'Approved' ? (prev.approved || 0) + 1 : prev.approved,
+          rejected: newStatus === 'Rejected' ? (prev.rejected || 0) + 1 : prev.rejected,
+        } : prev);
         setSelectedApplication(null);
         setRejectionReason('');
-        fetchData();
       } else {
         alert('Failed to update status: ' + res.data.message);
       }
