@@ -980,7 +980,13 @@ exports.checkOverstays = async (req, res) => {
 exports.verifyVisaToken = async (req, res) => {
   try {
     const { token } = req.params;
-    const application = await VisaApplication.findOne({ secureToken: token });
+    let query = { secureToken: token };
+    if (token.match(/^[0-9a-fA-F]{24}$/)) {
+      query = { $or: [{ secureToken: token }, { _id: token }] };
+    } else {
+      query = { $or: [{ secureToken: token }, { 'personalDetails.passportNumber': token.trim().toUpperCase() }] };
+    }
+    const application = await VisaApplication.findOne(query);
 
     if (!application) {
       return res.status(404).json({ success: false, message: 'Invalid or unrecognized visa token.' });
@@ -992,7 +998,7 @@ exports.verifyVisaToken = async (req, res) => {
       parentApp = await VisaApplication.findById(application.linkedApplicationId);
     }
 
-    const isOfficer = req.user && req.user.role === 'officer';
+    const isOfficer = req.user && req.user.role !== 'applicant';
 
     if (isOfficer) {
       application.scannedHistory.push({

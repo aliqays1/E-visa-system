@@ -1,5 +1,6 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useContext } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
+import { AuthContext } from '../context/AuthContext';
 import { 
   CheckCircleIcon, 
   XCircleIcon, 
@@ -18,6 +19,21 @@ const VerifyVisa = () => {
   const [error, setError] = useState('');
   const navigate = useNavigate();
   const [actionMessage, setActionMessage] = useState('');
+  const { user: authUser } = useContext(AuthContext);
+
+  const getAuthToken = useCallback(() => {
+    if (authUser?.token) return authUser.token;
+    const userInfoRaw = localStorage.getItem('userInfo') || sessionStorage.getItem('userInfo');
+    if (userInfoRaw) {
+      try {
+        const userObj = JSON.parse(userInfoRaw);
+        return userObj?.token || userObj?.user?.token || userObj?.authToken || null;
+      } catch (e) {
+        console.error(e);
+      }
+    }
+    return null;
+  }, [authUser]);
 
   const verifyToken = useCallback(async () => {
     try {
@@ -25,16 +41,9 @@ const VerifyVisa = () => {
       setError('');
       
       const headers = { 'Content-Type': 'application/json' };
-      const userInfoRaw = sessionStorage.getItem('userInfo');
-      let authToken = null;
-      
-      // If we are logged in as an officer, pass the token to get full data
-      if (userInfoRaw) {
-        const user = JSON.parse(userInfoRaw);
-        if (user && user.role === 'officer') {
-          authToken = user.token;
-          headers['Authorization'] = `Bearer ${authToken}`;
-        }
+      const authToken = getAuthToken();
+      if (authToken) {
+        headers['Authorization'] = `Bearer ${authToken}`;
       }
 
       const API_URL = import.meta.env.VITE_API_URL || '';
@@ -71,10 +80,8 @@ const VerifyVisa = () => {
 
   const handleBorderAction = async (action) => {
     try {
-      const userInfoRaw = sessionStorage.getItem('userInfo');
-      if (!userInfoRaw) return;
-      const user = JSON.parse(userInfoRaw);
-      const authToken = user.token;
+      const authToken = getAuthToken();
+      if (!authToken) return alert('Officer authentication required');
 
       const API_URL = import.meta.env.VITE_API_URL || '';
       const res = await fetch(`${API_URL}/api/visa/${data.application._id}/${action}`, {

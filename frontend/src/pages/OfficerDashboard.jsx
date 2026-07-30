@@ -739,20 +739,24 @@ const OfficerDashboard = () => {
     }
   };
 
+  const handleScanOrVerify = () => {
+    if (!scanToken) return alert('Please enter a secure token, passport number, or application ID');
+    let extractedToken = scanToken.trim();
+    if (extractedToken.includes('token=')) {
+      extractedToken = extractedToken.split('token=')[1].split('&')[0];
+    }
+    navigate(`/verify?token=${extractedToken}`);
+    setScanToken('');
+  };
+
   const handleScannerInput = (e) => {
     if (e.key === 'Enter' && scanToken) {
-      let extractedToken = scanToken.trim();
-      // Handle if the scanner pasted the full URL from the QR code
-      if (extractedToken.includes('token=')) {
-        extractedToken = extractedToken.split('token=')[1].split('&')[0];
-      }
-      navigate(`/verify?token=${extractedToken}`);
-      setScanToken('');
+      handleScanOrVerify();
     }
   };
 
   const handleBorderAction = async (action) => {
-    if (!scanToken) return alert('Please enter a secure token');
+    if (!scanToken) return alert('Please enter a secure token, passport number, or application ID');
     let extractedToken = scanToken.trim();
     if (extractedToken.includes('token=')) {
       extractedToken = extractedToken.split('token=')[1].split('&')[0];
@@ -762,16 +766,20 @@ const OfficerDashboard = () => {
       const resApp = await axios.get(`/api/visa/all?search=${extractedToken}`, {
         headers: { 'Authorization': `Bearer ${token}` }
       });
-      const app = resApp.data.applications.find(a => a.secureToken === extractedToken);
-      if (!app) return alert('No application found with that token!');
+      const app = resApp.data.applications.find(a => 
+        a.secureToken === extractedToken || 
+        a._id === extractedToken || 
+        a.personalDetails?.passportNumber?.toLowerCase() === extractedToken.toLowerCase()
+      );
+      if (!app) return alert('No application found matching that input!');
 
       const res = await axios.post(`/api/visa/${app._id}/${action}`, {}, {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       if (res.data.success) {
-        alert(`Successfully recorded ${action} for ${app.personalDetails?.firstName}!`);
         setScanToken('');
         fetchData();
+        navigate(`/verify?token=${app.secureToken || app._id}`);
       }
     } catch (error) {
       console.error(error);
@@ -1052,7 +1060,13 @@ const OfficerDashboard = () => {
                       <tr><td colSpan="4" className="px-6 py-10 text-center"><div className="inline-flex items-center justify-center space-x-2 text-gray-400"><svg className="animate-spin h-5 w-5 text-blue-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg><span className="font-medium animate-pulse">Loading records...</span></div></td></tr>
                     )}
                     {!loading && paymentApps.length === 0 && (
-                      <tr><td colSpan="4" className="px-6 py-10 text-center"><div className="inline-flex items-center justify-center space-x-2 text-gray-400"><svg className="animate-spin h-5 w-5 text-blue-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg><span className="font-medium animate-pulse">Loading records...</span></div></td></tr>
+                      <tr><td colSpan="4" className="px-6 py-16 text-center">
+                        <div className="flex flex-col items-center justify-center space-y-3 text-gray-400">
+                          <svg xmlns="http://www.w3.org/2000/svg" className="h-12 w-12 text-gray-300" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                          <p className="font-semibold text-gray-500 text-base">{searchQuery.trim() ? `No pending payment verifications found for "${searchQuery.trim()}"` : 'No pending payment verifications'}</p>
+                          <p className="text-sm text-gray-400">{searchQuery.trim() ? 'Try a different applicant name or ID.' : 'Applications requiring manual payment verification will appear here.'}</p>
+                        </div>
+                      </td></tr>
                     )}
                     {paymentApps.map((app) => (
                       <tr key={app._id} className="hover:bg-gray-50/50 transition-colors">
@@ -1093,6 +1107,10 @@ const OfficerDashboard = () => {
                     onKeyDown={handleScannerInput}
                     className="flex-1 px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-primary"
                   />
+                  <button onClick={handleScanOrVerify} className="px-6 py-3 bg-blue-600 text-white font-bold rounded-xl hover:bg-blue-700 shadow-md hover:shadow-lg transform hover:-translate-y-0.5 transition-all duration-300 flex items-center gap-2">
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>
+                    Scan & View
+                  </button>
                   <button onClick={() => handleBorderAction('entry')} className="px-6 py-3 bg-green-600 text-white font-bold rounded-xl hover:bg-green-700 shadow-md hover:shadow-lg transform hover:-translate-y-0.5 transition-all duration-300">Record Entry</button>
                   <button onClick={() => handleBorderAction('exit')} className="px-6 py-3 bg-red-600 text-white font-bold rounded-xl hover:bg-red-700 shadow-md hover:shadow-lg transform hover:-translate-y-0.5 transition-all duration-300">Record Exit</button>
                 </div>
