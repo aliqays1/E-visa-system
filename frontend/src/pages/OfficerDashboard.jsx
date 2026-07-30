@@ -473,18 +473,18 @@ const ReportsTab = ({ reports }) => {
           {statusStats.length === 0 ? (
             <p className="text-sm text-gray-400 italic">No data yet.</p>
           ) : (
-            <div className="space-y-3">
+            <div className="space-y-4">
               {statusStats.sort((a, b) => b.count - a.count).map(stat => {
                 const pct = totalApplications > 0 ? Math.round((stat.count / totalApplications) * 100) : 0;
                 const barColor = statusColors[stat._id] || 'bg-gray-400';
                 return (
-                  <div key={stat._id} className="flex items-center gap-3">
-                    <span className={`w-3 h-3 rounded-full flex-shrink-0 ${barColor}`} />
-                    <span className="text-base font-bold text-gray-700 w-36 truncate">{stat._id}</span>
-                    <div className="flex-1 h-3 bg-gray-100 rounded-full overflow-hidden">
+                  <div key={stat._id} className="flex items-center gap-4">
+                    <span className={`w-4 h-4 rounded-full flex-shrink-0 ${barColor}`} />
+                    <span className="text-base font-bold text-gray-700 w-40 truncate">{stat._id}</span>
+                    <div className="flex-1 h-5 bg-gray-100 rounded-full overflow-hidden">
                       <div className={`h-full ${barColor} rounded-full transition-all duration-700`} style={{ width: `${pct}%` }} />
                     </div>
-                    <span className="text-sm font-extrabold text-gray-700 w-8 text-right">{stat.count}</span>
+                    <span className="text-base font-extrabold text-gray-700 w-10 text-right">{stat.count}</span>
                   </div>
                 );
               })}
@@ -501,31 +501,40 @@ const ReportsTab = ({ reports }) => {
             New vs. Renewal Applications
           </h3>
           <div className="space-y-3">
-            {typeStats.map(stat => {
-              const total = typeStats.reduce((s, t) => s + t.count, 0);
-              const pct = total > 0 ? Math.round((stat.count / total) * 100) : 0;
-              const isRenewal = stat._id === 'Renewal';
-              return (
-                <div key={stat._id || 'unknown'}>
-                  <div className="flex justify-between text-sm font-semibold text-gray-700 mb-1">
-                    <span className="flex items-center gap-2">
-                      {isRenewal
-                        ? <svg className="w-4 h-4 text-purple-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" /></svg>
-                        : <svg className="w-4 h-4 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
-                      }
-                      {stat._id || 'New'}
-                    </span>
-                    <span className="font-extrabold">{stat.count} ({pct}%)</span>
+            {(() => {
+              // Merge any null/undefined/empty _id entries into a single "New" group
+              const merged = typeStats.reduce((acc, stat) => {
+                const key = stat._id && stat._id.trim() !== '' ? stat._id : 'New';
+                const existing = acc.find(x => x._id === key);
+                if (existing) { existing.count += stat.count; } else { acc.push({ _id: key, count: stat.count }); }
+                return acc;
+              }, []);
+              const total = merged.reduce((s, t) => s + t.count, 0);
+              return merged.map(stat => {
+                const pct = total > 0 ? Math.round((stat.count / total) * 100) : 0;
+                const isRenewal = stat._id === 'Renewal';
+                return (
+                  <div key={stat._id}>
+                    <div className="flex justify-between text-sm font-semibold text-gray-700 mb-1">
+                      <span className="flex items-center gap-2">
+                        {isRenewal
+                          ? <svg className="w-4 h-4 text-purple-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" /></svg>
+                          : <svg className="w-4 h-4 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
+                        }
+                        {stat._id}
+                      </span>
+                      <span className="font-extrabold">{stat.count} ({pct}%)</span>
+                    </div>
+                    <div className="h-2.5 bg-gray-100 rounded-full overflow-hidden">
+                      <div
+                        className={`h-full rounded-full transition-all duration-700 ${isRenewal ? 'bg-gradient-to-r from-purple-400 to-purple-600' : 'bg-gradient-to-r from-blue-400 to-blue-600'}`}
+                        style={{ width: `${pct}%` }}
+                      />
+                    </div>
                   </div>
-                  <div className="h-2.5 bg-gray-100 rounded-full overflow-hidden">
-                    <div
-                      className={`h-full rounded-full transition-all duration-700 ${isRenewal ? 'bg-gradient-to-r from-purple-400 to-purple-600' : 'bg-gradient-to-r from-blue-400 to-blue-600'}`}
-                      style={{ width: `${pct}%` }}
-                    />
-                  </div>
-                </div>
-              );
-            })}
+                );
+              });
+            })()}
           </div>
         </div>
 
