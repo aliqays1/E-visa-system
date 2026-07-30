@@ -583,8 +583,6 @@ const OfficerDashboard = () => {
 
   // Border Control states
   const [scanToken, setScanToken] = useState('');
-  const [scanResult, setScanResult] = useState(null);
-  const [scanLoading, setScanLoading] = useState(false);
   const [newlyDetectedOverstays, setNewlyDetectedOverstays] = useState([]);
 
   // Retrieve user token
@@ -741,28 +739,15 @@ const OfficerDashboard = () => {
     }
   };
 
-  const handleScannerInput = async (e) => {
+  const handleScannerInput = (e) => {
     if (e.key === 'Enter' && scanToken) {
       let extractedToken = scanToken.trim();
+      // Handle if the scanner pasted the full URL from the QR code
       if (extractedToken.includes('token=')) {
         extractedToken = extractedToken.split('token=')[1].split('&')[0];
       }
-      setScanLoading(true);
-      try {
-        const res = await axios.get(`/api/visa/verify/${extractedToken}`, {
-          headers: { 'Authorization': `Bearer ${token}` }
-        });
-        if (res.data.success !== false) {
-          setScanResult(res.data);
-        } else {
-          alert('Invalid or unrecognized visa token.');
-        }
-      } catch (error) {
-        alert('Token not found: ' + (error.response?.data?.message || error.message));
-      } finally {
-        setScanLoading(false);
-        setScanToken('');
-      }
+      navigate(`/verify?token=${extractedToken}`);
+      setScanToken('');
     }
   };
 
