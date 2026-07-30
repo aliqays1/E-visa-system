@@ -583,6 +583,8 @@ const OfficerDashboard = () => {
 
   // Border Control states
   const [scanToken, setScanToken] = useState('');
+  const [scanResult, setScanResult] = useState(null);
+  const [scanLoading, setScanLoading] = useState(false);
   const [newlyDetectedOverstays, setNewlyDetectedOverstays] = useState([]);
 
   // Retrieve user token
@@ -739,15 +741,28 @@ const OfficerDashboard = () => {
     }
   };
 
-  const handleScannerInput = (e) => {
+  const handleScannerInput = async (e) => {
     if (e.key === 'Enter' && scanToken) {
       let extractedToken = scanToken.trim();
-      // Handle if the scanner pasted the full URL from the QR code
       if (extractedToken.includes('token=')) {
         extractedToken = extractedToken.split('token=')[1].split('&')[0];
       }
-      navigate(`/verify?token=${extractedToken}`);
-      setScanToken('');
+      setScanLoading(true);
+      try {
+        const res = await axios.get(`/api/visa/verify/${extractedToken}`, {
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+        if (res.data.success !== false) {
+          setScanResult(res.data);
+        } else {
+          alert('Invalid or unrecognized visa token.');
+        }
+      } catch (error) {
+        alert('Token not found: ' + (error.response?.data?.message || error.message));
+      } finally {
+        setScanLoading(false);
+        setScanToken('');
+      }
     }
   };
 
@@ -1085,18 +1100,109 @@ const OfficerDashboard = () => {
               <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-8">
                 <h3 className="text-lg font-bold text-gray-900 font-sans mb-4">Border Control Scanner</h3>
                 <div className="flex space-x-4">
-                  <input 
-                    type="text" 
-                    placeholder="Scan QR Code or enter Secure Token..." 
-                    value={scanToken} 
-                    onChange={e => setScanToken(e.target.value)} 
+                  <input
+                    type="text"
+                    placeholder="Scan QR Code or enter Secure Token..."
+                    value={scanToken}
+                    onChange={e => setScanToken(e.target.value)}
                     onKeyDown={handleScannerInput}
-                    className="flex-1 px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-primary" 
+                    className="flex-1 px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-primary"
                   />
                   <button onClick={() => handleBorderAction('entry')} className="px-6 py-3 bg-green-600 text-white font-bold rounded-xl hover:bg-green-700 shadow-md hover:shadow-lg transform hover:-translate-y-0.5 transition-all duration-300">Record Entry</button>
                   <button onClick={() => handleBorderAction('exit')} className="px-6 py-3 bg-red-600 text-white font-bold rounded-xl hover:bg-red-700 shadow-md hover:shadow-lg transform hover:-translate-y-0.5 transition-all duration-300">Record Exit</button>
                 </div>
+                {scanLoading && (
+                  <div className="mt-4 flex items-center gap-2 text-sm text-gray-500">
+                    <svg className="animate-spin h-4 w-4 text-blue-600" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"/></svg>
+                    Verifying token...
+                  </div>
+                )}
               </div>
+
+              {/* Inline QR Scan Result Modal */}
+              {scanResult && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4" onClick={() => setScanResult(null)}>
+                  <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full overflow-hidden" onClick={e => e.stopPropagation()}>
+                    {/* Header */}
+                    <div className={`p-6 text-white text-center ${
+                      scanResult.applicationStatus === 'Approved' || scanResult.applicationStatus === 'Active' ? 'bg-green-600' :
+                      scanResult.applicationStatus === 'Rejected' ? 'bg-red-600' : 'bg-yellow-500'
+                    }`}>
+                      <div className="w-16 h-16 bg-white/20 rounded-full flex items-center justify-center mx-auto mb-3">
+                        <span className="text-3xl">
+                          {scanResult.applicationStatus === 'Approved' || scanResult.applicationStatus === 'Active' ? '✅' :
+                           scanResult.applicationStatus === 'Rejected' ? '❌' : '⏳'}
+                        </span>
+                      </div>
+                      <h2 className="text-2xl font-black tracking-wide">{scanResult.applicationStatus?.toUpperCase() || 'UNKNOWN'} VISA</h2>
+                      <p className="text-white/80 text-sm mt-1">Somalia E-Visa Verification</p>
+                    </div>
+
+                    {/* Body */}
+                    <div className="p-6 space-y-4">
+                      <div className="grid grid-cols-2 gap-3 text-sm">
+                        <div>
+                          <p className="text-xs font-bold uppercase tracking-wider text-gray-400">Applicant Name</p>
+                          <p className="font-bold text-gray-900 mt-0.5">
+                            {scanResult.personalDetails?.firstName || ''} {scanResult.personalDetails?.lastName || ''}
+                          </p>
+                        </div>
+                        <div>
+                          <p className="text-xs font-bold uppercase tracking-wider text-gray-400">Passport</p>
+                          <p className="font-bold text-gray-900 mt-0.5">{scanResult.passportNumber || scanResult.personalDetails?.passportNumber || '—'}</p>
+                        </div>
+                        <div>
+                          <p className="text-xs font-bold uppercase tracking-wider text-gray-400">Visa Type</p>
+                          <p className="font-semibold text-gray-800 mt-0.5">{scanResult.visaType} Visa</p>
+                        </div>
+                        <div>
+                          <p className="text-xs font-bold uppercase tracking-wider text-gray-400">Duration</p>
+                          <p className="font-semibold text-gray-800 mt-0.5">{scanResult.visaDuration || scanResult.stayDuration || '—'} Days</p>
+                        </div>
+                        <div>
+                          <p className="text-xs font-bold uppercase tracking-wider text-gray-400">Entry Recorded</p>
+                          <p className={`font-bold mt-0.5 ${scanResult.entryRecorded ? 'text-green-600' : 'text-gray-400'}`}>{scanResult.entryRecorded ? 'Yes' : 'Not Yet'}</p>
+                        </div>
+                        <div>
+                          <p className="text-xs font-bold uppercase tracking-wider text-gray-400">Remaining Days</p>
+                          <p className={`font-black mt-0.5 text-base ${
+                            (scanResult.remainingDays || 0) > 10 ? 'text-green-600' :
+                            (scanResult.remainingDays || 0) > 0 ? 'text-yellow-600' : 'text-red-600'
+                          }`}>{scanResult.remainingDays ?? '—'}</p>
+                        </div>
+                      </div>
+
+                      {/* Entry / Expiry dates */}
+                      {(scanResult.firstEntryDate || scanResult.stayExpiryDate) && (
+                        <div className="bg-green-50 border border-green-200 rounded-xl p-4 grid grid-cols-2 gap-3 text-sm">
+                          {scanResult.firstEntryDate && (
+                            <div>
+                              <p className="text-xs font-bold uppercase tracking-wider text-green-700">Entry Date</p>
+                              <p className="font-black text-green-900 mt-0.5">{new Date(scanResult.firstEntryDate).toLocaleDateString()}</p>
+                            </div>
+                          )}
+                          {scanResult.stayExpiryDate && (
+                            <div>
+                              <p className="text-xs font-bold uppercase tracking-wider text-green-700">Stay Expires</p>
+                              <p className="font-black text-green-900 mt-0.5">{new Date(scanResult.stayExpiryDate).toLocaleDateString()}</p>
+                            </div>
+                          )}
+                        </div>
+                      )}
+
+                      <p className="text-center text-xs text-gray-400 flex items-center justify-center gap-1.5 pt-1">
+                        <span>🛡️</span> Verified by Department of Immigration
+                      </p>
+                    </div>
+
+                    <div className="px-6 pb-5">
+                      <button onClick={() => setScanResult(null)} className="w-full py-3 bg-gray-900 text-white font-bold rounded-xl hover:bg-gray-700 transition-colors">
+                        Close
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
 
               <div className="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden">
                 <div className="px-6 py-5 border-b border-gray-100 flex justify-between items-center bg-white">
