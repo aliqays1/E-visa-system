@@ -129,9 +129,20 @@ const VerifyVisa = () => {
   const { isOfficer, application } = data;
   const isEntryRecorded = !!application.entryRecorded;
   const isApproved = application.applicationStatus === 'Approved' || application.applicationStatus === 'Active';
+  
+  const calcEntryValidUntil = (app) => {
+    if (app.entryRecorded && app.stayExpiryDate) {
+      return new Date(app.stayExpiryDate).toLocaleDateString();
+    }
+    const duration = Number(app.visaDuration) || Number(app.stayDuration) || 30;
+    const baseDate = app.approvalDate || app.issueDate || app.createdAt;
+    const calculated = baseDate ? new Date(new Date(baseDate).getTime() + duration * 24 * 60 * 60 * 1000) : new Date();
+    return calculated.toLocaleDateString();
+  };
+
   const isExpired = application.isExpired || (isEntryRecorded 
     ? (application.stayExpiryDate && new Date() > new Date(application.stayExpiryDate))
-    : (application.entryValidUntil && new Date() > new Date(application.entryValidUntil)));
+    : (new Date() > new Date(new Date(application.approvalDate || application.issueDate || application.createdAt).getTime() + (Number(application.visaDuration) || 30) * 24 * 60 * 60 * 1000)));
 
   // --- PUBLIC VIEW ---
   if (!isOfficer) {
@@ -189,7 +200,7 @@ const VerifyVisa = () => {
               <div className="bg-amber-50 p-4 rounded-xl border border-amber-200/60">
                 <p className="text-xs text-amber-800 uppercase font-bold tracking-wider mb-1">Entry Valid Until</p>
                 <p className="text-base font-extrabold text-amber-900">
-                  {application.entryValidUntil ? new Date(application.entryValidUntil).toLocaleDateString() : (application.validUntilDate ? new Date(application.validUntilDate).toLocaleDateString() : 'N/A')}
+                  {calcEntryValidUntil(application)}
                 </p>
                 <p className="text-[11px] text-amber-700 mt-1">Must enter Somalia before this date. Stay duration countdown starts upon first entry.</p>
               </div>
@@ -309,7 +320,7 @@ const VerifyVisa = () => {
                   <div>
                     <span className="text-xs font-bold text-amber-800 uppercase tracking-wider block mb-1">Entry Valid Until</span>
                     <span className="font-extrabold text-amber-950">
-                      {application.entryValidUntil ? new Date(application.entryValidUntil).toLocaleDateString() : (application.validUntilDate ? new Date(application.validUntilDate).toLocaleDateString() : 'N/A')}
+                      {calcEntryValidUntil(application)}
                     </span>
                   </div>
                   <div className="col-span-2 text-xs text-amber-700 italic border-t border-amber-200/50 pt-2">
@@ -457,7 +468,7 @@ const VerifyVisa = () => {
                  <div>
                     <p className="text-xs text-amber-800 uppercase font-bold tracking-wider mb-1">Entry Valid Until</p>
                     <p className="font-extrabold text-amber-900">
-                      {application.entryValidUntil ? new Date(application.entryValidUntil).toLocaleDateString() : (application.validUntilDate ? new Date(application.validUntilDate).toLocaleDateString() : 'N/A')}
+                      {calcEntryValidUntil(application)}
                     </p>
                  </div>
                ) : (

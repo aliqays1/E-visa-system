@@ -309,14 +309,17 @@ exports.updateApplication = async (req, res) => {
     const passportFile = req.files && req.files.passportDocument ? req.files.passportDocument[0] : null;
     const photoFile = req.files && req.files.photoDocument ? req.files.photoDocument[0] : null;
     const supportingFile = req.files && req.files.supportingDocument ? req.files.supportingDocument[0] : null;
+    const admissionFile = req.files && req.files.admissionDocument ? req.files.admissionDocument[0] : null;
 
     let newPassport = passportFile ? await uploadToImageKit(passportFile) : null;
     let newPhoto = photoFile ? await uploadToImageKit(photoFile) : null;
     let newSupporting = supportingFile ? await uploadToImageKit(supportingFile) : null;
+    let newAdmission = admissionFile ? await uploadToImageKit(admissionFile) : null;
 
     const passportDocument = newPassport || application.passportDocument;
     const photoDocument = newPhoto || application.supportingDocuments[0];
     const supportingDocument = newSupporting || application.supportingDocuments[1];
+    const admissionDocument = newAdmission || application.admissionDocument;
 
     // Parse JSON details if sent as strings (via FormData)
     const parsedPersonalDetails = typeof personalDetails === 'string' ? JSON.parse(personalDetails) : personalDetails;
@@ -341,6 +344,9 @@ exports.updateApplication = async (req, res) => {
     // Update documents
     application.passportDocument = passportDocument;
     application.supportingDocuments = [photoDocument, supportingDocument].filter(Boolean);
+    if (admissionDocument) {
+      application.admissionDocument = admissionDocument;
+    }
 
     // Reset status to Under Review
     application.applicationStatus = 'Under Review';
@@ -362,10 +368,17 @@ exports.getMyApplications = async (req, res) => {
       .select('-scannedHistory')
       .sort({ createdAt: -1 })
     const formattedApps = applications.map(app => {
-      if (app.entryDate || app.renewalCount > 0 || (app.renewalHistory && app.renewalHistory.length > 0) || ['Entered', 'Overstayed', 'Exited'].includes(app.entryStatus)) {
-        app.entryRecorded = true;
+      const appObj = app.toObject ? app.toObject() : app;
+      if (appObj.entryDate || appObj.renewalCount > 0 || (appObj.renewalHistory && appObj.renewalHistory.length > 0) || ['Entered', 'Overstayed', 'Exited'].includes(appObj.entryStatus)) {
+        appObj.entryRecorded = true;
       }
-      return app;
+      if (!appObj.entryRecorded && ['Approved', 'Active'].includes(appObj.applicationStatus)) {
+        const durationDays = Number(appObj.visaDuration) || Number(appObj.stayDuration) || 30;
+        const baseTime = new Date(appObj.approvalDate || appObj.issueDate || appObj.createdAt).getTime();
+        appObj.entryValidUntil = new Date(baseTime + durationDays * 24 * 60 * 60 * 1000);
+        appObj.validUntilDate = appObj.entryValidUntil;
+      }
+      return appObj;
     });
     res.json({ success: true, applications: formattedApps });
   } catch (error) {
@@ -380,7 +393,7 @@ exports.getStats = async (req, res) => {
     const [totalApps, pendingApps, approvedApps, rejectedApps, overstays] = await Promise.all([
       VisaApplication.countDocuments(),
       VisaApplication.countDocuments({ applicationStatus: { $in: ['Submitted', 'Pending', 'Under Review', 'Needs Revision'] } }),
-      VisaApplication.countDocuments({ applicationStatus: 'Approved' }),
+      VisaApplication.countDocuments({ applicationStatus: { $in: ['Approved', 'Active'] } }),
       VisaApplication.countDocuments({ applicationStatus: 'Rejected' }),
       VisaApplication.countDocuments({ overstayAlert: true })
     ]);
@@ -440,14 +453,20 @@ exports.getAllApplications = async (req, res) => {
       .sort({ createdAt: -1 })
       .skip(skip)
       .limit(limit)
-      .lean();
-      
-    // Fetch total count for pagination if needed
-    const totalCount = await VisaApplication.countDocuments(query);
-      
+    const formattedApps = applications.map(app => {
+      if (!app.entryRecorded && ['Approved', 'Active'].includes(app.applicationStatus)) {
+        const durationDays = Number(app.visaDuration) || Number(app.stayDuration) || 30;
+        const baseTime = new Date(app.approvalDate || app.issueDate || app.createdAt).getTime();
+        const calculatedExpiry = new Date(baseTime + durationDays * 24 * 60 * 60 * 1000);
+        app.entryValidUntil = calculatedExpiry;
+        app.validUntilDate = calculatedExpiry;
+      }
+      return app;
+    });
+
     res.json({ 
       success: true, 
-      applications,
+      applications: formattedApps,
       pagination: {
         total: totalCount,
         page,
@@ -574,14 +593,14 @@ exports.updateStatus = async (req, res) => {
         }
       }
 
-      // Pre-entry validity setup (for new approval or initial issue)
+      // Pre-entry validity setup (calculated from approval date + visa duration days)
       if (!application.issueDate) {
         application.issueDate = new Date();
       }
       application.approvalDate = new Date();
       
-      // 40-day Entry Validity Window (allowed period to enter Somalia)
-      const entryValidUntil = new Date(Date.now() + 40 * 24 * 60 * 60 * 1000);
+      const durationDays = Number(application.visaDuration) || Number(application.stayDuration) || 30;
+      const entryValidUntil = new Date(application.approvalDate.getTime() + durationDays * 24 * 60 * 60 * 1000);
       application.entryValidUntil = entryValidUntil;
       application.validUntilDate = entryValidUntil;
 
@@ -682,6 +701,13 @@ exports.trackVisa = async (req, res) => {
       return res.status(401).json({ success: false, message: 'Invalid Passport Number for this application.' });
     }
 
+    let entryValidUntil = application.entryValidUntil;
+    if (!application.entryRecorded && ['Approved', 'Active'].includes(application.applicationStatus)) {
+      const durationDays = Number(application.visaDuration) || Number(application.stayDuration) || 30;
+      const baseTime = new Date(application.approvalDate || application.issueDate || application.createdAt).getTime();
+      entryValidUntil = new Date(baseTime + durationDays * 24 * 60 * 60 * 1000);
+    }
+
     res.json({
       success: true,
       application: {
@@ -691,6 +717,9 @@ exports.trackVisa = async (req, res) => {
         createdAt: application.createdAt,
         approvalDate: application.approvalDate,
         expirationDate: application.expirationDate,
+        entryValidUntil: entryValidUntil,
+        validUntilDate: entryValidUntil,
+        stayExpiryDate: application.stayExpiryDate,
         visaDuration: application.visaDuration,
         rejectionReason: application.rejectionReason,
         personalDetails: {
@@ -727,6 +756,13 @@ exports.verifyTrackVisaOtp = async (req, res) => {
     // Delete code after successful use
     await VerificationCode.deleteOne({ _id: verification._id });
 
+    let otpEntryValidUntil = application.entryValidUntil;
+    if (!application.entryRecorded && ['Approved', 'Active'].includes(application.applicationStatus)) {
+      const durationDays = Number(application.visaDuration) || Number(application.stayDuration) || 30;
+      const baseTime = new Date(application.approvalDate || application.issueDate || application.createdAt).getTime();
+      otpEntryValidUntil = new Date(baseTime + durationDays * 24 * 60 * 60 * 1000);
+    }
+
     res.json({
       success: true,
       application: {
@@ -736,6 +772,9 @@ exports.verifyTrackVisaOtp = async (req, res) => {
         createdAt: application.createdAt,
         approvalDate: application.approvalDate,
         expirationDate: application.expirationDate,
+        entryValidUntil: otpEntryValidUntil,
+        validUntilDate: otpEntryValidUntil,
+        stayExpiryDate: application.stayExpiryDate,
         visaDuration: application.visaDuration,
         rejectionReason: application.rejectionReason,
         personalDetails: {
@@ -814,7 +853,7 @@ exports.recordEntry = async (req, res) => {
 
     application.entryRecorded = true;
     application.entryStatus = 'Entered';
-    // Keep applicationStatus as 'Approved' for Admin Portal Registry visibility
+    application.applicationStatus = 'Active';
     application.entryDate = entryDate;
     application.stayExpiryDate = stayExpiryDate;
     application.expirationDate = stayExpiryDate; // Legacy fallback
@@ -834,6 +873,7 @@ exports.recordEntry = async (req, res) => {
       await VisaApplication.findByIdAndUpdate(application.linkedApplicationId, {
         entryRecorded: true,
         entryStatus: 'Entered',
+        applicationStatus: 'Active',
         entryDate,
         stayExpiryDate,
         expirationDate: stayExpiryDate,
@@ -844,6 +884,7 @@ exports.recordEntry = async (req, res) => {
       await VisaApplication.updateMany({ linkedApplicationId: application._id }, {
         entryRecorded: true,
         entryStatus: 'Entered',
+        applicationStatus: 'Active',
         entryDate,
         stayExpiryDate,
         expirationDate: stayExpiryDate,

@@ -829,7 +829,7 @@ const AuditorDashboard = () => {
                         selectedApplication.applicationStatus === 'Rejected' ? 'bg-red-100 text-red-700' :
                         'bg-yellow-100 text-yellow-700'
                       }`}>
-                        {selectedApplication.applicationStatus}
+                        {selectedApplication.applicationStatus === 'Submitted' ? 'Pending' : selectedApplication.applicationStatus === 'Under Review' ? 'Updated Revision' : selectedApplication.applicationStatus}
                       </span>
                     </div>
                     {selectedApplication.officerId && (

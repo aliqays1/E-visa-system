@@ -97,29 +97,28 @@ const TrackVisa = () => {
   };
 
   const renderApprovedStatus = () => {
-    const expiryTarget = visaData.stayExpiryDate || visaData.expirationDate || visaData.entryValidUntil;
-    if (!expiryTarget) return null;
+    const rawTarget = visaData.stayExpiryDate || visaData.expirationDate || visaData.entryValidUntil || visaData.validUntilDate;
+    const expiryTarget = rawTarget ? new Date(rawTarget) : new Date(Date.now() + 40 * 24 * 60 * 60 * 1000);
 
     const today = new Date();
-    const expiry = new Date(expiryTarget);
+    const expiry = expiryTarget;
     const diffTime = expiry - today;
-    const daysLeft = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-    
-    const isOverstay = daysLeft < 0;
+    const daysLeft = Math.max(0, Math.ceil(diffTime / (1000 * 60 * 60 * 24)));
+    const isOverstay = diffTime < 0;
 
     return (
       <div className="mt-6">
         {isOverstay ? (
           <div className="bg-red-50 border-l-4 border-red-600 p-6 rounded-r-2xl shadow-sm">
             <div className="flex items-start">
-              <ExclamationTriangleIcon className="h-8 w-8 text-red-600 mr-4" />
+              <ExclamationTriangleIcon className="h-8 w-8 text-red-600 mr-4 shrink-0" />
               <div>
                 <h3 className="text-xl font-extrabold text-red-800 tracking-tight mb-1">CRITICAL OVERSTAY WARNING</h3>
                 <p className="text-red-700 font-medium mb-2">
                   Your visa expired on <strong>{expiry.toLocaleDateString()}</strong>.
                 </p>
                 <div className="bg-red-600 text-white font-black text-2xl py-2 px-4 rounded-xl inline-block shadow-md">
-                  Overstayed by {Math.abs(daysLeft)} Days
+                  Overstayed by {Math.abs(Math.ceil(diffTime / (1000 * 60 * 60 * 24)))} Days
                 </div>
                 <p className="text-sm text-red-800 mt-4 font-bold">
                   You are currently in violation of immigration policies. Please contact the Immigration and Citizenship Service immediately to resolve your status.
@@ -128,15 +127,17 @@ const TrackVisa = () => {
             </div>
           </div>
         ) : (
-          <div className="bg-green-50 border-l-4 border-green-500 p-6 rounded-r-2xl shadow-sm">
+          <div className="bg-emerald-50/70 border-l-4 border-emerald-500 p-6 rounded-r-2xl shadow-sm">
             <div className="flex items-start">
-              <CheckCircleIcon className="h-8 w-8 text-green-500 mr-4" />
+              <CheckCircleIcon className="h-7 w-7 text-emerald-500 mr-3 shrink-0 mt-0.5" />
               <div>
-                <h3 className="text-xl font-extrabold text-green-800 tracking-tight mb-1">Visa is Active & Valid</h3>
-                <p className="text-green-700 font-medium mb-3">
+                <h3 className="text-xl font-extrabold text-emerald-950 tracking-tight mb-1">
+                  {visaData.applicationStatus === 'Active' ? 'Visa is Active & Valid' : 'Visa is Approved & Valid'}
+                </h3>
+                <p className="text-emerald-800 font-medium mb-3">
                   Your visa expires on <strong>{expiry.toLocaleDateString()}</strong>.
                 </p>
-                <div className="bg-green-500 text-white font-black text-2xl py-2 px-4 rounded-xl inline-block shadow-md">
+                <div className="bg-emerald-500 text-white font-extrabold text-xl py-2 px-5 rounded-2xl inline-block shadow-sm">
                   {daysLeft} Days Remaining
                 </div>
               </div>
@@ -145,13 +146,13 @@ const TrackVisa = () => {
         )}
 
         {/* Action Buttons */}
-        <div className="mt-8 flex gap-4">
+        <div className="mt-8 flex flex-col sm:flex-row gap-4">
           {['Approved', 'Active'].includes(visaData.applicationStatus) && !isOverstay && (
             <a 
               href={`${import.meta.env.VITE_API_URL || ''}/${(visaData.pdfUrl || `uploads/pdfs/visa-${visaData._id}.pdf`).replace(/\\/g, '/')}`}
               target="_blank"
               rel="noreferrer"
-              className="flex-grow bg-primary hover:bg-blue-700 text-white font-bold py-4 rounded-xl text-center shadow-lg shadow-blue-500/30 transition-all text-center flex items-center justify-center gap-2"
+              className="flex-1 bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3.5 px-6 rounded-2xl text-center shadow-lg shadow-indigo-500/25 transition-all flex items-center justify-center gap-2"
             >
               <ArrowDownTrayIcon className="w-5 h-5" />
               Download Official e-Visa PDF
@@ -159,7 +160,7 @@ const TrackVisa = () => {
           )}
           <button 
             onClick={() => { setVisaData(null); setStep(1); setOtpCode(''); }}
-            className={`py-4 border-2 border-gray-200 text-gray-600 font-bold rounded-xl hover:bg-gray-50 transition-all text-center ${visaData.pdfUrl && !isOverstay ? 'px-6' : 'flex-1 w-full'}`}
+            className={`py-3.5 px-6 border border-gray-200 text-gray-700 font-bold rounded-2xl hover:bg-gray-50 transition-all text-center ${['Approved', 'Active'].includes(visaData.applicationStatus) && !isOverstay ? '' : 'w-full'}`}
           >
             Search Another
           </button>

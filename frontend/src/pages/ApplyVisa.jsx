@@ -193,6 +193,7 @@ const ApplyVisa = () => {
     passportScanName: '',
     selfieName: '',
     supportingDocName: '',
+    admissionDocName: '',
     paymentMethod: 'Credit Card',
     cardNumber: '',
     cardExpiry: '',
@@ -200,7 +201,8 @@ const ApplyVisa = () => {
     paypalEmail: '',
     passportScanData: null,
     selfieData: null,
-    supportingDocData: null
+    supportingDocData: null,
+    admissionDocData: null
   });
 
   useEffect(() => {
@@ -260,9 +262,11 @@ const ApplyVisa = () => {
               passportScanName: app.passportDocument || 'existing_document',
               selfieName: app.supportingDocuments?.[0] || 'existing_photo',
               supportingDocName: app.supportingDocuments?.[1] || 'existing_support',
+              admissionDocName: app.admissionDocument || 'existing_admission',
               passportScanData: 'data:image/jpeg;base64,dummy',
               selfieData: 'data:image/jpeg;base64,dummy',
-              supportingDocData: 'data:application/pdf;base64,dummy'
+              supportingDocData: 'data:application/pdf;base64,dummy',
+              admissionDocData: app.admissionDocument ? 'data:application/pdf;base64,dummy' : null
             }));
             setStep(2); // Start at duration selection
           }
@@ -294,6 +298,7 @@ const ApplyVisa = () => {
               passportScanName: app.passportDocument || prev.passportScanName,
               selfieName: app.supportingDocuments?.[0] || prev.selfieName,
               supportingDocName: app.supportingDocuments?.[1] || prev.supportingDocName,
+              admissionDocName: app.admissionDocument || prev.admissionDocName,
             }));
             // Skip directly to step 2 in edit mode
             setStep(2);

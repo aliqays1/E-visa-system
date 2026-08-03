@@ -385,7 +385,15 @@ const ApplicantDashboard = () => {
                 <div>
                   <span className="text-gray-400 font-medium uppercase block">Entry Valid Until</span>
                   <span className="text-sm font-bold text-gray-800">
-                    {selectedVisa.entryValidUntil ? new Date(selectedVisa.entryValidUntil).toLocaleDateString() : (selectedVisa.validUntilDate ? new Date(selectedVisa.validUntilDate).toLocaleDateString() : 'N/A')}
+                    {(() => {
+                      if (selectedVisa.entryRecorded && selectedVisa.stayExpiryDate) {
+                        return new Date(selectedVisa.stayExpiryDate).toLocaleDateString();
+                      }
+                      const duration = Number(selectedVisa.stayDuration) || Number(selectedVisa.visaDuration) || 30;
+                      const baseDate = selectedVisa.issueDate || selectedVisa.approvalDate || selectedVisa.createdAt;
+                      const calculated = baseDate ? new Date(new Date(baseDate).getTime() + duration * 24 * 60 * 60 * 1000) : new Date();
+                      return calculated.toLocaleDateString();
+                    })()}
                   </span>
                 </div>
                 {(selectedVisa.entryRecorded || selectedVisa.entryStatus === 'Entered' || selectedVisa.stayExpiryDate) && (

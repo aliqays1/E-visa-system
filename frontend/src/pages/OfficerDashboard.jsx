@@ -865,7 +865,7 @@ const OfficerDashboard = () => {
   // Tab specific filters
   const reviewApps = searchedApps;
   const paymentApps = searchedApps.filter(app => app.paymentStatus === 'Pending' || app.paymentStatus === 'Unverified');
-  const borderApps = searchedApps.filter(app => app.applicationStatus === 'Approved' || ['Entered', 'Exited', 'Overstayed'].includes(app.entryStatus));
+  const borderApps = searchedApps.filter(app => ['Approved', 'Active'].includes(app.applicationStatus) || ['Entered', 'Exited', 'Overstayed'].includes(app.entryStatus));
   const alertApps = searchedApps.filter(app => app.overstayAlert === true || app.entryStatus === 'Overstayed');
 
   return (
@@ -1461,11 +1461,15 @@ const OfficerDashboard = () => {
                         <div className="flex justify-between items-center text-xs pt-0.5">
                           <span className="text-gray-400 font-bold uppercase text-[10px] tracking-wider">Entry Valid Until</span>
                           <span className="font-bold text-slate-800 text-xs">
-                            {selectedApplication.entryValidUntil
-                              ? new Date(selectedApplication.entryValidUntil).toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' })
-                              : selectedApplication.validUntilDate
-                              ? new Date(selectedApplication.validUntilDate).toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' })
-                              : 'N/A'}
+                            {(() => {
+                              if (selectedApplication.entryRecorded && selectedApplication.stayExpiryDate) {
+                                return new Date(selectedApplication.stayExpiryDate).toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' });
+                              }
+                              const duration = Number(selectedApplication.visaDuration) || Number(selectedApplication.stayDuration) || 30;
+                              const baseDate = selectedApplication.approvalDate || selectedApplication.issueDate || selectedApplication.createdAt;
+                              const calculated = baseDate ? new Date(new Date(baseDate).getTime() + duration * 24 * 60 * 60 * 1000) : new Date();
+                              return calculated.toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' });
+                            })()}
                           </span>
                         </div>
                       </div>
@@ -1491,7 +1495,7 @@ const OfficerDashboard = () => {
             </div>
 
             <div className="bg-gray-50 px-6 py-4 flex justify-between items-center border-t border-gray-100">
-              <span className="text-xs font-bold text-gray-500 uppercase tracking-wider">Status: <span className="text-gray-700">{selectedApplication.applicationStatus}</span></span>
+              <span className="text-xs font-bold text-gray-500 uppercase tracking-wider">Status: <span className="text-gray-700">{selectedApplication.applicationStatus === 'Submitted' ? 'Pending' : selectedApplication.applicationStatus === 'Under Review' ? 'Updated Revision' : selectedApplication.applicationStatus}</span></span>
               
               {['Submitted', 'Pending', 'Under Review', 'Needs Revision'].includes(selectedApplication.applicationStatus) ? (
                 <div className="space-x-3">
