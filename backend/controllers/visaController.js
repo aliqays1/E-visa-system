@@ -454,14 +454,19 @@ exports.getAllApplications = async (req, res) => {
       .skip(skip)
       .limit(limit)
     const formattedApps = applications.map(app => {
-      if (!app.entryRecorded && ['Approved', 'Active'].includes(app.applicationStatus)) {
-        const durationDays = Number(app.visaDuration) || Number(app.stayDuration) || 30;
-        const baseTime = new Date(app.approvalDate || app.issueDate || app.createdAt).getTime();
+      const appObj = app.toObject ? app.toObject() : app;
+      if (appObj.entryRecorded || appObj.entryDate || ['Entered', 'Overstayed', 'Exited'].includes(appObj.entryStatus)) {
+        if (['Approved', 'Active'].includes(appObj.applicationStatus)) {
+          appObj.applicationStatus = 'Active';
+        }
+      } else if (['Approved', 'Active'].includes(appObj.applicationStatus)) {
+        const durationDays = Number(appObj.visaDuration) || Number(appObj.stayDuration) || 30;
+        const baseTime = new Date(appObj.approvalDate || appObj.issueDate || appObj.createdAt).getTime();
         const calculatedExpiry = new Date(baseTime + durationDays * 24 * 60 * 60 * 1000);
-        app.entryValidUntil = calculatedExpiry;
-        app.validUntilDate = calculatedExpiry;
+        appObj.entryValidUntil = calculatedExpiry;
+        appObj.validUntilDate = calculatedExpiry;
       }
-      return app;
+      return appObj;
     });
 
     res.json({ 

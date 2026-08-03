@@ -1024,8 +1024,9 @@ const OfficerDashboard = () => {
                             <td className="px-8 py-5 text-gray-500 font-medium">{new Date(app.createdAt).toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' })}</td>
                             <td className="px-8 py-5">
                               <span className={`px-4 py-1.5 inline-flex text-xs font-bold uppercase tracking-wider rounded-full shadow-sm border ${
+                                (app.applicationStatus === 'Active' || app.entryRecorded || ['Entered', 'Overstayed', 'Exited'].includes(app.entryStatus))
+                                  ? 'bg-emerald-100 text-emerald-800 border-emerald-300' :
                                 app.applicationStatus === 'Approved' ? 'bg-emerald-50 text-emerald-700 border-emerald-200' :
-                                app.applicationStatus === 'Active' ? 'bg-emerald-100 text-emerald-800 border-emerald-300' :
                                 app.applicationStatus === 'Rejected' ? 'bg-rose-50 text-rose-700 border-rose-200' :
                                 app.applicationStatus === 'Needs Revision' ? 'bg-amber-50 text-amber-700 border-amber-200' :
                                 app.applicationStatus === 'Renewal Pending' ? 'bg-purple-50 text-purple-700 border-purple-200' :
@@ -1033,6 +1034,7 @@ const OfficerDashboard = () => {
                               }`}>{
                                 app.applicationStatus === 'Under Review' ? 'Updated Revision' :
                                 app.applicationStatus === 'Submitted' ? 'Pending' :
+                                (app.entryRecorded || ['Entered', 'Overstayed', 'Exited'].includes(app.entryStatus) || app.applicationStatus === 'Active') ? 'Active' :
                                 app.applicationStatus
                               }</span>
                             </td>
