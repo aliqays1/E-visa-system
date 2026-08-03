@@ -1,4 +1,5 @@
 const VisaApplication = require('../models/VisaApplication');
+const User = require('../models/User');
 const VerificationCode = require('../models/VerificationCode');
 const VisaConfig = require('../models/VisaConfig');
 const sendEmail = require('../utils/sendEmail');
@@ -452,7 +453,10 @@ exports.getAllApplications = async (req, res) => {
       .populate('applicantId', 'fullName email')
       .sort({ createdAt: -1 })
       .skip(skip)
-      .limit(limit)
+      .limit(limit);
+
+    const totalCount = await VisaApplication.countDocuments(query);
+
     const formattedApps = applications.map(app => {
       const appObj = app.toObject ? app.toObject() : app;
       if (appObj.entryRecorded || appObj.entryDate || ['Entered', 'Overstayed', 'Exited'].includes(appObj.entryStatus)) {
