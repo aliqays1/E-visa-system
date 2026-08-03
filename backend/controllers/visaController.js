@@ -1188,8 +1188,14 @@ exports.sendWarning = async (req, res) => {
 // Get Reports & Analytics
 exports.getReports = async (req, res) => {
   try {
+    // Sync all overstayAlert records so applicationStatus and entryStatus accurately reflect 'Overstayed'
+    await VisaApplication.updateMany(
+      { overstayAlert: true, applicationStatus: { $ne: 'Overstayed' } },
+      { $set: { applicationStatus: 'Overstayed', entryStatus: 'Overstayed' } }
+    );
+
     const revenueStats = await VisaApplication.aggregate([
-      { $match: { applicationStatus: 'Approved' } },
+      { $match: { applicationStatus: { $in: ['Approved', 'Active', 'Overstayed'] } } },
       { $group: { _id: "$visaType", totalRevenue: { $sum: "$paymentDetails.amountPaid" } } }
     ]);
     

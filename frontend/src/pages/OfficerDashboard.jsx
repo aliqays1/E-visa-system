@@ -362,10 +362,12 @@ const ReportsTab = ({ reports }) => {
 
   const statusColors = {
     'Approved': 'bg-emerald-500',
+    'Active': 'bg-slate-400',
     'Rejected': 'bg-rose-500',
     'Submitted': 'bg-blue-400',
     'Under Review': 'bg-amber-400',
     'Needs Revision': 'bg-orange-400',
+    'Overstayed': 'bg-rose-600',
     'Pending': 'bg-gray-400',
   };
 
@@ -475,12 +477,13 @@ const ReportsTab = ({ reports }) => {
           ) : (
             <div className="space-y-4">
               {statusStats.sort((a, b) => b.count - a.count).map(stat => {
+                const statusLabel = stat._id === 'Submitted' ? 'Pending' : (stat._id === 'Under Review' ? 'Updated Revision' : stat._id);
                 const pct = totalApplications > 0 ? Math.round((stat.count / totalApplications) * 100) : 0;
-                const barColor = statusColors[stat._id] || 'bg-gray-400';
+                const barColor = statusColors[stat._id] || statusColors[statusLabel] || 'bg-gray-400';
                 return (
                   <div key={stat._id} className="flex items-center gap-4">
                     <span className={`w-4 h-4 rounded-full flex-shrink-0 ${barColor}`} />
-                    <span className="text-base font-bold text-gray-700 w-40 truncate">{stat._id}</span>
+                    <span className="text-base font-bold text-gray-700 w-40 truncate">{statusLabel}</span>
                     <div className="flex-1 h-5 bg-gray-100 rounded-full overflow-hidden">
                       <div className={`h-full ${barColor} rounded-full transition-all duration-700`} style={{ width: `${pct}%` }} />
                     </div>
