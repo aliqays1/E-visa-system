@@ -1195,8 +1195,8 @@ exports.getReports = async (req, res) => {
     );
 
     const revenueStats = await VisaApplication.aggregate([
-      { $match: { applicationStatus: { $in: ['Approved', 'Active', 'Overstayed'] } } },
-      { $group: { _id: "$visaType", totalRevenue: { $sum: "$paymentDetails.amountPaid" } } }
+      { $match: { paymentStatus: 'Completed' } },
+      { $group: { _id: "$visaType", totalRevenue: { $sum: { $ifNull: ["$paymentDetails.amountPaid", 100] } } } }
     ]);
     
     const typeStats = await VisaApplication.aggregate([
