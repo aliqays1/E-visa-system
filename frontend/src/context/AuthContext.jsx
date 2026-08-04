@@ -3,12 +3,26 @@ import axios from 'axios';
 
 export const AuthContext = createContext();
 
+// Returns a role-scoped storage key so each portal tab is isolated.
+// e.g. userInfo_officer, userInfo_auditor, userInfo_applicant
+const getStorageKey = (role) => {
+  if (role) return `userInfo_${role}`;
+  // Fallback: derive from current URL path when role is unknown
+  const path = window.location.pathname;
+  if (path.startsWith('/admin'))     return 'userInfo_officer';
+  if (path.startsWith('/auditor'))   return 'userInfo_auditor';
+  if (path.startsWith('/applicant')) return 'userInfo_applicant';
+  return 'userInfo_officer'; // default
+};
+
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const userInfo = localStorage.getItem('userInfo') || sessionStorage.getItem('userInfo');
+    // Each tab reads only the key that matches its URL path
+    const key = getStorageKey(null);
+    const userInfo = localStorage.getItem(key) || sessionStorage.getItem(key);
     if (userInfo) {
       setUser(JSON.parse(userInfo));
     }
@@ -16,16 +30,17 @@ export const AuthProvider = ({ children }) => {
   }, []);
 
   const saveAuthSession = (data, email, rememberMe = true) => {
+    const key = getStorageKey(data?.role);
     setUser(data);
-    sessionStorage.setItem('userInfo', JSON.stringify(data));
+    sessionStorage.setItem(key, JSON.stringify(data));
     if (rememberMe) {
-      localStorage.setItem('userInfo', JSON.stringify(data));
+      localStorage.setItem(key, JSON.stringify(data));
       if (email) {
         localStorage.setItem('remembered_email', email);
         localStorage.setItem('remember_me', 'true');
       }
     } else {
-      localStorage.removeItem('userInfo');
+      localStorage.removeItem(key);
       localStorage.removeItem('remembered_email');
       localStorage.setItem('remember_me', 'false');
     }
@@ -126,9 +141,10 @@ export const AuthProvider = ({ children }) => {
   };
 
   const logout = () => {
+    const key = getStorageKey(user?.role);
     setUser(null);
-    sessionStorage.removeItem('userInfo');
-    localStorage.removeItem('userInfo');
+    sessionStorage.removeItem(key);
+    localStorage.removeItem(key);
   };
 
   return (

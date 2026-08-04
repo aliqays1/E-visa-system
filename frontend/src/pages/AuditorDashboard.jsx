@@ -28,6 +28,7 @@ const AuditorDashboard = () => {
   const [stats, setStats] = useState({ totalApps: 0, approved: 0, rejected: 0, pending: 0, overstays: 0 });
   const [applications, setApplications] = useState([]);
   const [logs, setLogs] = useState([]);
+  const [reports, setReports] = useState(null);
   
   const [loading, setLoading] = useState(true);
   const [selectedApplication, setSelectedApplication] = useState(null);
@@ -101,7 +102,7 @@ const AuditorDashboard = () => {
     doc.text(`Period: ${reportMonth || 'All Time'}    Visa Status: ${reportStatus}    Payment Status: ${reportPayment}`, 14, 70);
     
     // Summary info
-    const totalRev = filteredReportApps.filter(a => a.paymentStatus === 'Completed').reduce((s, a) => s + (a.paymentDetails?.amountPaid || 100), 0).toLocaleString();
+    const totalRev = (reports?.revenueStats?.reduce((s, r) => s + (r.totalRevenue || 0), 0) ?? filteredReportApps.filter(a => a.paymentStatus === 'Completed').reduce((s, a) => s + (a.paymentDetails?.amountPaid || 0), 0)).toLocaleString();
     const totalRenewals = filteredReportApps.filter(a => a.applicationType === 'Renewal').length;
     const totalActive = filteredReportApps.filter(a => a.applicationStatus === 'Active').length;
     doc.setFontSize(10);
@@ -195,6 +196,9 @@ const AuditorDashboard = () => {
 
       const logsRes = await axios.get('/api/auditor/activity-logs', { headers });
       if (logsRes.data.success) setLogs(logsRes.data.logs);
+
+      const reportsRes = await axios.get('/api/auditor/reports', { headers });
+      if (reportsRes.data.success) setReports(reportsRes.data.reports);
 
     } catch (error) {
       console.error(error);
@@ -429,7 +433,7 @@ const AuditorDashboard = () => {
                         <div className="text-center">
                           <div className="text-sm font-bold text-green-600 uppercase tracking-wider mb-1">Total Revenue Collected</div>
                           <div className="text-4xl font-extrabold text-green-700">
-                            ${applications.filter(a => a.paymentStatus === 'Completed').reduce((sum, a) => sum + (a.paymentDetails?.amountPaid || 100), 0).toLocaleString()}
+                            ${(reports?.revenueStats?.reduce((sum, r) => sum + (r.totalRevenue || 0), 0) ?? applications.filter(a => a.paymentStatus === 'Completed').reduce((sum, a) => sum + (a.paymentDetails?.amountPaid || 0), 0)).toLocaleString()}
                           </div>
                         </div>
                       </div>
@@ -719,7 +723,7 @@ const AuditorDashboard = () => {
                   <div className="overflow-x-auto p-6">
                     <div className="mb-4 flex flex-wrap gap-4 text-sm print:mb-8">
                        <div className="font-bold text-gray-700">Total Records: <span className="text-indigo-600">{filteredReportApps.length}</span></div>
-                       <div className="font-bold text-gray-700">Total Revenue: <span className="text-green-600">${filteredReportApps.filter(a => a.paymentStatus === 'Completed').reduce((s, a) => s + (a.paymentDetails?.amountPaid || 100), 0).toLocaleString()}</span></div>
+                       <div className="font-bold text-gray-700">Total Revenue: <span className="text-green-600">${filteredReportApps.filter(a => a.paymentStatus === 'Completed').reduce((s, a) => s + (a.paymentDetails?.amountPaid || 0), 0).toLocaleString()}</span></div>
                        <div className="font-bold text-gray-700">Renewals: <span className="text-purple-600">{filteredReportApps.filter(a => a.applicationType === 'Renewal').length}</span></div>
                        <div className="font-bold text-gray-700">Active: <span className="text-emerald-600">{filteredReportApps.filter(a => a.applicationStatus === 'Active').length}</span></div>
                     </div>
