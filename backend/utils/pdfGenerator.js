@@ -73,6 +73,7 @@ const generateVisaPdf = async (application) => {
       const durationDays = Number(application.visaDuration) || Number(application.stayDuration) || 30;
       const baseTime = application.approvalDate ? new Date(application.approvalDate).getTime() : (application.issueDate ? new Date(application.issueDate).getTime() : new Date(application.createdAt).getTime());
       const preEntryExpiry = new Date(baseTime + durationDays * 24 * 60 * 60 * 1000);
+      const issueDateStr = application.issueDate ? new Date(application.issueDate).toLocaleDateString() : new Date(application.approvalDate || application.createdAt).toLocaleDateString();
       const expiryDateStr = application.stayExpiryDate ? new Date(application.stayExpiryDate).toLocaleDateString() : preEntryExpiry.toLocaleDateString();
 
       doc.text(`Duration: ${durationText}`, 300);
