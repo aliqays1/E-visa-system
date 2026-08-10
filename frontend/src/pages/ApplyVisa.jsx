@@ -247,9 +247,12 @@ const ApplyVisa = () => {
             setFormData(prev => ({
               ...prev,
               visaType: app.visaType || prev.visaType,
-              purpose: '', // Leave empty — applicant must state their own renewal reason
+              purpose: app.purposeOfTravel || prev.purpose,
+              duration: app.visaDuration?.toString() || prev.duration,
               firstName: app.personalDetails?.firstName || prev.firstName,
               lastName: app.personalDetails?.lastName || prev.lastName,
+              dateOfBirth: app.personalDetails?.dateOfBirth ? new Date(app.personalDetails.dateOfBirth).toISOString().split('T')[0] : prev.dateOfBirth,
+              gender: app.personalDetails?.gender || prev.gender,
               passportNumber: app.personalDetails?.passportNumber || app.passportNumber || prev.passportNumber,
               nationality: app.personalDetails?.nationality || prev.nationality,
               passportExpiry: app.personalDetails?.passportExpiry ? new Date(app.personalDetails.passportExpiry).toISOString().split('T')[0] : prev.passportExpiry,
@@ -259,6 +262,8 @@ const ApplyVisa = () => {
               departureDate: app.travelDetails?.departureDate ? new Date(app.travelDetails.departureDate).toISOString().split('T')[0] : prev.departureDate,
               hostAddress: app.travelDetails?.hostAddress || prev.hostAddress,
               address: app.travelDetails?.hostAddress || prev.address,
+              flightNumber: app.travelDetails?.flightNumber || prev.flightNumber,
+              accommodation: app.travelDetails?.accommodation || prev.accommodation,
               passportScanName: app.passportDocument || 'existing_document',
               selfieName: app.supportingDocuments?.[0] || 'existing_photo',
               supportingDocName: app.supportingDocuments?.[1] || 'existing_support',
@@ -268,7 +273,7 @@ const ApplyVisa = () => {
               supportingDocData: 'data:application/pdf;base64,dummy',
               admissionDocData: app.admissionDocument ? 'data:application/pdf;base64,dummy' : null
             }));
-            setStep(2); // Start at duration selection
+            setStep(2); // Start at visa type & purpose step, all fields pre-filled
           }
         }
       }).catch(err => console.error("Error fetching application to renew", err));
