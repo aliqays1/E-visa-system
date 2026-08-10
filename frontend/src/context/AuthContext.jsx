@@ -11,8 +11,13 @@ const getStorageKey = (role) => {
   const path = window.location.pathname;
   if (path.startsWith('/admin'))     return 'userInfo_officer';
   if (path.startsWith('/auditor'))   return 'userInfo_auditor';
-  if (path.startsWith('/applicant')) return 'userInfo_applicant';
-  return 'userInfo_officer'; // default
+  if (path.startsWith('/applicant') || path.startsWith('/apply') || path.startsWith('/track') || path.startsWith('/verify')) return 'userInfo_applicant';
+  // Last resort: try each key in priority order and return whichever has data
+  const keys = ['userInfo_applicant', 'userInfo_officer', 'userInfo_auditor'];
+  for (const k of keys) {
+    if (localStorage.getItem(k) || sessionStorage.getItem(k)) return k;
+  }
+  return 'userInfo_applicant'; // safe default for public-facing pages
 };
 
 export const AuthProvider = ({ children }) => {
