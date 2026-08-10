@@ -292,6 +292,8 @@ const ApplyVisa = () => {
               duration: app.visaDuration?.toString() || prev.duration,
               firstName: app.personalDetails?.firstName || prev.firstName,
               lastName: app.personalDetails?.lastName || prev.lastName,
+              dateOfBirth: app.personalDetails?.dateOfBirth ? new Date(app.personalDetails.dateOfBirth).toISOString().split('T')[0] : prev.dateOfBirth,
+              gender: app.personalDetails?.gender || prev.gender,
               passportNumber: app.personalDetails?.passportNumber || app.passportNumber || prev.passportNumber,
               nationality: app.personalDetails?.nationality || prev.nationality,
               passportExpiry: app.personalDetails?.passportExpiry ? new Date(app.personalDetails.passportExpiry).toISOString().split('T')[0] : prev.passportExpiry,
@@ -300,10 +302,17 @@ const ApplyVisa = () => {
               arrivalDate: app.travelDetails?.arrivalDate ? new Date(app.travelDetails.arrivalDate).toISOString().split('T')[0] : prev.arrivalDate,
               departureDate: app.travelDetails?.departureDate ? new Date(app.travelDetails.departureDate).toISOString().split('T')[0] : prev.departureDate,
               hostAddress: app.travelDetails?.hostAddress || prev.hostAddress,
+              address: app.travelDetails?.hostAddress || prev.address,
+              flightNumber: app.travelDetails?.flightNumber || prev.flightNumber,
+              accommodation: app.travelDetails?.accommodation || prev.accommodation,
               passportScanName: app.passportDocument || prev.passportScanName,
               selfieName: app.supportingDocuments?.[0] || prev.selfieName,
               supportingDocName: app.supportingDocuments?.[1] || prev.supportingDocName,
               admissionDocName: app.admissionDocument || prev.admissionDocName,
+              passportScanData: app.passportDocument ? 'data:image/jpeg;base64,dummy' : prev.passportScanData,
+              selfieData: app.supportingDocuments?.[0] ? 'data:image/jpeg;base64,dummy' : prev.selfieData,
+              supportingDocData: app.supportingDocuments?.[1] ? 'data:application/pdf;base64,dummy' : prev.supportingDocData,
+              admissionDocData: app.admissionDocument ? 'data:application/pdf;base64,dummy' : prev.admissionDocData,
             }));
             // Skip directly to step 2 in edit mode
             setStep(2);
