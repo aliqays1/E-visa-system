@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { AuthContext } from '../context/AuthContext';
 import bannerImage from '../assets/The Queen of the Skies_ Emirates A380 Golden Hour Departure ✈️🌇.jpg';
 import airportHeroImage from '../assets/mogadishu-airport-hero.jpg';
+import migrationBannerImage from '../assets/somalia-migration-banner.jpg';
 import { 
   PhoneIcon,
   EnvelopeIcon,
@@ -354,9 +355,9 @@ const Home = () => {
       <div className="relative py-32 bg-gray-900 border-t-4 border-primary">
          <div className="absolute inset-0">
           <img 
-            className="w-full h-full object-cover opacity-20"
-            src={bannerImage} 
-            alt="Emirates A380" 
+            className="w-full h-full object-cover opacity-25"
+            src={migrationBannerImage} 
+            alt="Somalia aerial view" 
           />
         </div>
         <div className="relative max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center flex flex-col items-center">
