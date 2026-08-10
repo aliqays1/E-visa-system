@@ -2,6 +2,7 @@ import React, { useContext } from 'react';
 import { Link } from 'react-router-dom';
 import { AuthContext } from '../context/AuthContext';
 import bannerImage from '../assets/The Queen of the Skies_ Emirates A380 Golden Hour Departure ✈️🌇.jpg';
+import airportHeroImage from '../assets/mogadishu-airport-hero.jpg';
 import { 
   PhoneIcon,
   EnvelopeIcon,
@@ -87,9 +88,9 @@ const Home = () => {
       <div className="relative bg-gray-900 overflow-hidden">
         <div className="absolute inset-0">
           <img 
-            className="w-full h-full object-cover opacity-30 transform scale-105"
-            src="https://images.unsplash.com/photo-1436491865332-7a61a109cc05?auto=format&fit=crop&q=80" 
-            alt="Airplane" 
+            className="w-full h-full object-cover opacity-40 transform scale-105"
+            src={airportHeroImage} 
+            alt="Mogadishu International Airport" 
           />
           <div className="absolute inset-0 bg-gradient-to-r from-[#111827] via-[#111827]/80 to-transparent"></div>
         </div>
