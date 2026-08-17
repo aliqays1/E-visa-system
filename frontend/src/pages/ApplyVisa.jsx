@@ -180,6 +180,7 @@ const ApplyVisa = () => {
     visaType: '',
     duration: '',
     purpose: '',
+    purposeOfStayingLonger: '', // renewal-only: why the applicant needs to stay longer
     firstName: '',
     lastName: '',
     passportNumber: '',
@@ -247,8 +248,12 @@ const ApplyVisa = () => {
             setFormData(prev => ({
               ...prev,
               visaType: app.visaType || prev.visaType,
-              purpose: app.purposeOfTravel || prev.purpose,
-              duration: app.visaDuration?.toString() || prev.duration,
+              // purposeOfStayingLonger starts EMPTY — applicant must provide a fresh reason
+              purposeOfStayingLonger: '',
+              purpose: '', // cleared so renewal purpose field is blank
+              // duration starts EMPTY — applicant must actively choose a new duration
+              duration: '',
+              // ── Lock: personal & passport details (read-only in renewal) ──
               firstName: app.personalDetails?.firstName || prev.firstName,
               lastName: app.personalDetails?.lastName || prev.lastName,
               dateOfBirth: app.personalDetails?.dateOfBirth ? new Date(app.personalDetails.dateOfBirth).toISOString().split('T')[0] : prev.dateOfBirth,
@@ -258,12 +263,15 @@ const ApplyVisa = () => {
               passportExpiry: app.personalDetails?.passportExpiry ? new Date(app.personalDetails.passportExpiry).toISOString().split('T')[0] : prev.passportExpiry,
               phone: app.personalDetails?.phone || app.travelDetails?.phone || app.phone || prev.phone,
               email: app.personalDetails?.email || prev.email,
+              // ── Lock: travel details except departureDate ──
               arrivalDate: app.travelDetails?.arrivalDate ? new Date(app.travelDetails.arrivalDate).toISOString().split('T')[0] : prev.arrivalDate,
-              departureDate: app.travelDetails?.departureDate ? new Date(app.travelDetails.departureDate).toISOString().split('T')[0] : prev.departureDate,
+              // departureDate starts EMPTY — applicant must provide new expected departure
+              departureDate: '',
               hostAddress: app.travelDetails?.hostAddress || prev.hostAddress,
               address: app.travelDetails?.hostAddress || prev.address,
               flightNumber: app.travelDetails?.flightNumber || prev.flightNumber,
               accommodation: app.travelDetails?.accommodation || prev.accommodation,
+              // ── Documents inherited from original application (no re-upload allowed) ──
               passportScanName: app.passportDocument || 'existing_document',
               selfieName: app.supportingDocuments?.[0] || 'existing_photo',
               supportingDocName: app.supportingDocuments?.[1] || 'existing_support',
@@ -273,7 +281,7 @@ const ApplyVisa = () => {
               supportingDocData: 'data:application/pdf;base64,dummy',
               admissionDocData: app.admissionDocument ? 'data:application/pdf;base64,dummy' : null
             }));
-            setStep(2); // Start at visa type & purpose step, all fields pre-filled
+            setStep(2); // Start at visa type & purpose step
           }
         }
       }).catch(err => console.error("Error fetching application to renew", err));
@@ -479,7 +487,8 @@ const ApplyVisa = () => {
         amountPaid: amountDue,
         paymentMethod: formData.paymentMethod,
         paymentStatus: formData.paymentMethod === 'Bank Transfer' ? 'Pending' : 'Completed',
-        purposeOfTravel: formData.purpose || 'Renewal',
+        // purposeOfStayingLonger is the renewal-specific reason; falls back to 'Renewal'
+        purposeOfTravel: formData.purposeOfStayingLonger || formData.purpose || 'Renewal',
         personalDetails: {
           firstName: formData.firstName,
           lastName: formData.lastName,
@@ -861,54 +870,92 @@ const ApplyVisa = () => {
               {/* Step 2: Visa Type & Purpose */}
               {step === 2 && (
                 <div className="space-y-6 animate-fadeIn">
+
+                  {/* ── Renewal info banner ── */}
+                  {renewId && (
+                    <div className="flex items-start gap-3 p-4 rounded-xl bg-blue-50 border border-blue-200 text-blue-800">
+                      <svg className="w-5 h-5 flex-shrink-0 mt-0.5 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                      <div>
+                        <p className="font-bold text-sm">Visa Renewal Mode</p>
+                        <p className="text-xs mt-0.5 leading-relaxed">Your visa category is locked. Please select a new <strong>Duration of Stay</strong> and provide your <strong>Purpose of Staying Longer</strong>.</p>
+                      </div>
+                    </div>
+                  )}
+
                   <div>
-                    <label className="block text-sm font-semibold text-gray-700 mb-3 tracking-wide">Visa Category</label>
-                    {dynamicVisaOptions.length === 0 ? (
-                      <div className="flex items-center justify-center py-10 text-gray-400 text-sm border-2 border-dashed border-gray-200 rounded-2xl">
-                        <svg className="w-5 h-5 mr-2 animate-spin" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/></svg>
-                        Loading visa types...
+                    <div className="flex items-center gap-2 mb-3">
+                      <label className="block text-sm font-semibold text-gray-700 tracking-wide">Visa Category</label>
+                      {renewId && (
+                        <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-slate-100 border border-slate-300 rounded-full text-[10px] font-bold text-slate-500 uppercase tracking-wider">
+                          <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" /></svg>
+                          Locked
+                        </span>
+                      )}
+                    </div>
+                    {renewId ? (
+                      /* ── READ-ONLY visa type display in renewal mode ── */
+                      <div className="flex items-center gap-4 p-4 rounded-2xl border-2 border-slate-200 bg-slate-50/80 cursor-not-allowed select-none">
+                        <span className="w-11 h-11 rounded-xl bg-slate-200 text-slate-500 flex items-center justify-center flex-shrink-0">
+                          {getVisaIcon(formData.visaType)}
+                        </span>
+                        <div className="flex-1">
+                          <span className="block font-bold text-base text-slate-700">{formData.visaType} Visa</span>
+                          <span className="block text-xs text-slate-400 mt-0.5">Visa category cannot be changed during renewal</span>
+                        </div>
+                        <svg className="w-5 h-5 text-slate-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" /></svg>
                       </div>
                     ) : (
-                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-                      {dynamicVisaOptions.map(opt => {
-                        const isSelected = formData.visaType?.toLowerCase() === opt.value.toLowerCase();
-                        return (
-                          <button
-                            key={opt.value}
-                            type="button"
-                            onClick={() => handleChange({ target: { name: 'visaType', value: opt.value } })}
-                            className={`relative flex flex-col items-start gap-2 p-4 rounded-2xl border-2 text-left transition-all duration-200 group
-                              ${isSelected
-                                ? 'border-primary bg-primary shadow-lg shadow-primary/20'
-                                : 'border-gray-200 bg-white hover:border-primary/50 hover:bg-blue-50/40 hover:shadow-sm'
-                              }`}
-                          >
-                            {isSelected && (
-                              <span className="absolute top-2.5 right-2.5 w-5 h-5 bg-white rounded-full flex items-center justify-center shadow-sm">
-                                <CheckIcon className="w-3 h-3 text-primary" />
-                              </span>
-                            )}
-                            <span className={`w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0 transition-all ${
-                              isSelected ? 'bg-white/20 text-white' : 'bg-gray-100 text-gray-500 group-hover:bg-primary/10 group-hover:text-primary'
-                            }`}>
-                              {opt.icon}
-                            </span>
-                            <div>
-                              <span className={`block font-bold text-sm leading-tight ${isSelected ? 'text-white' : 'text-gray-800'}`}>
-                                {opt.value}
-                              </span>
-                              <span className={`block text-[11px] mt-0.5 leading-snug ${isSelected ? 'text-white/70' : 'text-gray-400'}`}>
-                                {opt.description}
-                              </span>
-                            </div>
-                          </button>
-                        );
-                      })}
-                    </div>
+                      dynamicVisaOptions.length === 0 ? (
+                        <div className="flex items-center justify-center py-10 text-gray-400 text-sm border-2 border-dashed border-gray-200 rounded-2xl">
+                          <svg className="w-5 h-5 mr-2 animate-spin" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/></svg>
+                          Loading visa types...
+                        </div>
+                      ) : (
+                        <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                          {dynamicVisaOptions.map(opt => {
+                            const isSelected = formData.visaType?.toLowerCase() === opt.value.toLowerCase();
+                            return (
+                              <button
+                                key={opt.value}
+                                type="button"
+                                onClick={() => handleChange({ target: { name: 'visaType', value: opt.value } })}
+                                className={`relative flex flex-col items-start gap-2 p-4 rounded-2xl border-2 text-left transition-all duration-200 group
+                                  ${isSelected
+                                    ? 'border-primary bg-primary shadow-lg shadow-primary/20'
+                                    : 'border-gray-200 bg-white hover:border-primary/50 hover:bg-blue-50/40 hover:shadow-sm'
+                                  }`}
+                              >
+                                {isSelected && (
+                                  <span className="absolute top-2.5 right-2.5 w-5 h-5 bg-white rounded-full flex items-center justify-center shadow-sm">
+                                    <CheckIcon className="w-3 h-3 text-primary" />
+                                  </span>
+                                )}
+                                <span className={`w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0 transition-all ${
+                                  isSelected ? 'bg-white/20 text-white' : 'bg-gray-100 text-gray-500 group-hover:bg-primary/10 group-hover:text-primary'
+                                }`}>
+                                  {opt.icon}
+                                </span>
+                                <div>
+                                  <span className={`block font-bold text-sm leading-tight ${isSelected ? 'text-white' : 'text-gray-800'}`}>
+                                    {opt.value}
+                                  </span>
+                                  <span className={`block text-[11px] mt-0.5 leading-snug ${isSelected ? 'text-white/70' : 'text-gray-400'}`}>
+                                    {opt.description}
+                                  </span>
+                                </div>
+                              </button>
+                            );
+                          })}
+                        </div>
+                      )
                     )}
                   </div>
+
                   <div>
-                    <label className="block text-sm font-semibold text-gray-700 mb-2 tracking-wide">Duration of Stay</label>
+                    <div className="flex items-center gap-2 mb-2">
+                      <label className="block text-sm font-semibold text-gray-700 tracking-wide">Duration of Stay</label>
+                      {!renewId && null}
+                    </div>
                     {(() => {
                       const activeConfig = visaConfigs.find(c => 
                         c.visaType.toLowerCase() === formData.visaType.toLowerCase() ||
@@ -935,7 +982,7 @@ const ApplyVisa = () => {
                           value={formData.duration}
                           onChange={handleChange}
                           options={durationOptions}
-                          placeholder={formData.visaType ? 'Select duration of stay' : 'Select visa type first'}
+                          placeholder={formData.visaType ? 'Select new duration of stay' : 'Select visa type first'}
                           disabled={!formData.visaType}
                           required
                         />
@@ -981,19 +1028,39 @@ const ApplyVisa = () => {
                     </div>
                   )}
 
+                  {/* Purpose of Travel / Purpose of Staying Longer */}
                   <div>
-                    <label className="block text-sm font-semibold text-gray-700 mb-2 tracking-wide">
-                      {renewId ? 'Purpose of Staying Longer' : 'Purpose of Travel'}
-                    </label>
-                    <textarea 
-                      name="purpose" 
-                      required 
-                      value={formData.purpose} 
-                      onChange={handleChange} 
-                      rows="4" 
-                      placeholder={renewId ? 'e.g. why staying longer than your visa now' : 'Please briefly describe your specific travel plans and purpose...'} 
-                      className="w-full px-4 py-3.5 rounded-xl border border-gray-200/80 bg-gray-50/50 hover:bg-white focus:bg-white focus:ring-2 focus:ring-slate-800/20 focus:border-slate-800 text-gray-800"
-                    ></textarea>
+                    <div className="flex items-center gap-2 mb-2">
+                      <label className="block text-sm font-semibold text-gray-700 tracking-wide">
+                        {renewId ? 'Purpose of Staying Longer' : 'Purpose of Travel'}
+                      </label>
+                      {renewId && (
+                        <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-emerald-100 border border-emerald-300 rounded-full text-[10px] font-bold text-emerald-700 uppercase tracking-wider">
+                          Required
+                        </span>
+                      )}
+                    </div>
+                    {renewId ? (
+                      <textarea
+                        name="purposeOfStayingLonger"
+                        required
+                        value={formData.purposeOfStayingLonger}
+                        onChange={handleChange}
+                        rows="4"
+                        placeholder="Please explain why you need to extend your stay in Somalia (e.g. ongoing business negotiations, medical treatment, awaiting a connecting event, etc.)"
+                        className="w-full px-4 py-3.5 rounded-xl border-2 border-blue-300 bg-blue-50/40 hover:bg-white focus:bg-white focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 text-gray-800 transition-all"
+                      />
+                    ) : (
+                      <textarea
+                        name="purpose"
+                        required
+                        value={formData.purpose}
+                        onChange={handleChange}
+                        rows="4"
+                        placeholder="Please briefly describe your specific travel plans and purpose..."
+                        className="w-full px-4 py-3.5 rounded-xl border border-gray-200/80 bg-gray-50/50 hover:bg-white focus:bg-white focus:ring-2 focus:ring-slate-800/20 focus:border-slate-800 text-gray-800"
+                      />
+                    )}
                   </div>
                 </div>
               )}
@@ -1001,62 +1068,149 @@ const ApplyVisa = () => {
               {/* Step 3: Passport & Personal Details */}
               {step === 3 && (
                 <div className="space-y-6 animate-fadeIn">
+
+                  {/* ── Renewal: locked personal info banner ── */}
+                  {renewId && (
+                    <div className="flex items-start gap-3 p-4 rounded-xl bg-amber-50 border border-amber-200 text-amber-800">
+                      <svg className="w-5 h-5 flex-shrink-0 mt-0.5 text-amber-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" /></svg>
+                      <div>
+                        <p className="font-bold text-sm">Personal Information Locked</p>
+                        <p className="text-xs mt-0.5 leading-relaxed">Your personal and passport details are pre-filled from your original application and cannot be modified during renewal.</p>
+                      </div>
+                    </div>
+                  )}
+
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    {/* ── Helper: locked label badge ── */}
+                    {/* First Name */}
                     <div>
-                      <label className="block text-sm font-semibold text-gray-700 mb-2 tracking-wide">Given / First Name</label>
-                      <input 
-                        type="text" 
-                        name="firstName" 
-                        required 
-                        value={formData.firstName} 
-                        onChange={handleChange} 
-                        placeholder="As written on your passport" 
-                        className="w-full px-4 py-3.5 rounded-xl border border-gray-200/80 bg-gray-50/50 hover:bg-white focus:bg-white focus:ring-2 focus:ring-primary/20 focus:border-primary text-gray-800"
+                      <div className="flex items-center gap-2 mb-2">
+                        <label className="block text-sm font-semibold text-gray-700 tracking-wide">Given / First Name</label>
+                        {renewId && (
+                          <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-slate-100 border border-slate-300 rounded-full text-[10px] font-bold text-slate-500 uppercase tracking-wider">
+                            <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" /></svg>
+                            Locked
+                          </span>
+                        )}
+                      </div>
+                      <input
+                        type="text"
+                        name="firstName"
+                        required
+                        value={formData.firstName}
+                        onChange={renewId ? undefined : handleChange}
+                        readOnly={!!renewId}
+                        placeholder="As written on your passport"
+                        className={`w-full px-4 py-3.5 rounded-xl border text-gray-800 transition-all ${
+                          renewId
+                            ? 'border-slate-200 bg-slate-50 text-slate-600 cursor-not-allowed select-none'
+                            : 'border-gray-200/80 bg-gray-50/50 hover:bg-white focus:bg-white focus:ring-2 focus:ring-primary/20 focus:border-primary'
+                        }`}
                       />
                     </div>
+                    {/* Last Name */}
                     <div>
-                      <label className="block text-sm font-semibold text-gray-700 mb-2 tracking-wide">Surname / Last Name</label>
-                      <input 
-                        type="text" 
-                        name="lastName" 
-                        required 
-                        value={formData.lastName} 
-                        onChange={handleChange} 
-                        placeholder="As written on your passport" 
-                        className="w-full px-4 py-3.5 rounded-xl border border-gray-200/80 bg-gray-50/50 hover:bg-white focus:bg-white focus:ring-2 focus:ring-primary/20 focus:border-primary text-gray-800"
+                      <div className="flex items-center gap-2 mb-2">
+                        <label className="block text-sm font-semibold text-gray-700 tracking-wide">Surname / Last Name</label>
+                        {renewId && (
+                          <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-slate-100 border border-slate-300 rounded-full text-[10px] font-bold text-slate-500 uppercase tracking-wider">
+                            <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" /></svg>
+                            Locked
+                          </span>
+                        )}
+                      </div>
+                      <input
+                        type="text"
+                        name="lastName"
+                        required
+                        value={formData.lastName}
+                        onChange={renewId ? undefined : handleChange}
+                        readOnly={!!renewId}
+                        placeholder="As written on your passport"
+                        className={`w-full px-4 py-3.5 rounded-xl border text-gray-800 transition-all ${
+                          renewId
+                            ? 'border-slate-200 bg-slate-50 text-slate-600 cursor-not-allowed select-none'
+                            : 'border-gray-200/80 bg-gray-50/50 hover:bg-white focus:bg-white focus:ring-2 focus:ring-primary/20 focus:border-primary'
+                        }`}
                       />
                     </div>
+                    {/* Passport Number */}
                     <div>
-                      <label className="block text-sm font-semibold text-gray-700 mb-2 tracking-wide">Passport Number</label>
-                      <input 
-                        type="text" 
-                        name="passportNumber" 
-                        required 
-                        value={formData.passportNumber} 
-                        onChange={handleChange} 
-                        placeholder="e.g. N0123456" 
-                        className="w-full px-4 py-3.5 rounded-xl border border-gray-200/80 bg-gray-50/50 hover:bg-white focus:bg-white focus:ring-2 focus:ring-primary/20 focus:border-primary uppercase text-gray-800 font-semibold"
+                      <div className="flex items-center gap-2 mb-2">
+                        <label className="block text-sm font-semibold text-gray-700 tracking-wide">Passport Number</label>
+                        {renewId && (
+                          <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-slate-100 border border-slate-300 rounded-full text-[10px] font-bold text-slate-500 uppercase tracking-wider">
+                            <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" /></svg>
+                            Locked
+                          </span>
+                        )}
+                      </div>
+                      <input
+                        type="text"
+                        name="passportNumber"
+                        required
+                        value={formData.passportNumber}
+                        onChange={renewId ? undefined : handleChange}
+                        readOnly={!!renewId}
+                        placeholder="e.g. N0123456"
+                        className={`w-full px-4 py-3.5 rounded-xl border uppercase font-semibold transition-all ${
+                          renewId
+                            ? 'border-slate-200 bg-slate-50 text-slate-600 cursor-not-allowed select-none'
+                            : 'border-gray-200/80 bg-gray-50/50 text-gray-800 hover:bg-white focus:bg-white focus:ring-2 focus:ring-primary/20 focus:border-primary'
+                        }`}
                       />
                     </div>
+                    {/* Nationality */}
                     <div>
-                      <label className="block text-sm font-semibold text-gray-700 mb-2 tracking-wide">Nationality</label>
-                      <CountryAutocomplete
-                        required 
-                        value={formData.nationality} 
-                        onChange={handleChange} 
-                        placeholder="Your country of citizenship" 
-                        className="w-full px-4 py-3.5 rounded-xl border border-gray-200/80 bg-gray-50/50 hover:bg-white focus:bg-white focus:ring-2 focus:ring-primary/20 focus:border-primary text-gray-800"
-                      />
+                      <div className="flex items-center gap-2 mb-2">
+                        <label className="block text-sm font-semibold text-gray-700 tracking-wide">Nationality</label>
+                        {renewId && (
+                          <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-slate-100 border border-slate-300 rounded-full text-[10px] font-bold text-slate-500 uppercase tracking-wider">
+                            <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" /></svg>
+                            Locked
+                          </span>
+                        )}
+                      </div>
+                      {renewId ? (
+                        <input
+                          type="text"
+                          value={formData.nationality}
+                          readOnly
+                          className="w-full px-4 py-3.5 rounded-xl border border-slate-200 bg-slate-50 text-slate-600 cursor-not-allowed select-none"
+                        />
+                      ) : (
+                        <CountryAutocomplete
+                          required
+                          value={formData.nationality}
+                          onChange={handleChange}
+                          placeholder="Your country of citizenship"
+                          className="w-full px-4 py-3.5 rounded-xl border border-gray-200/80 bg-gray-50/50 hover:bg-white focus:bg-white focus:ring-2 focus:ring-primary/20 focus:border-primary text-gray-800"
+                        />
+                      )}
                     </div>
+                    {/* Passport Expiry */}
                     <div>
-                      <label className="block text-sm font-semibold text-gray-700 mb-2 tracking-wide">Passport Expiry Date</label>
-                      <input 
-                        type="date" 
-                        name="passportExpiry" 
-                        required 
-                        value={formData.passportExpiry} 
-                        onChange={handleChange} 
-                        className="w-full px-4 py-3.5 rounded-xl border border-gray-200/80 bg-gray-50/50 hover:bg-white focus:bg-white focus:ring-2 focus:ring-primary/20 focus:border-primary text-gray-800"
+                      <div className="flex items-center gap-2 mb-2">
+                        <label className="block text-sm font-semibold text-gray-700 tracking-wide">Passport Expiry Date</label>
+                        {renewId && (
+                          <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-slate-100 border border-slate-300 rounded-full text-[10px] font-bold text-slate-500 uppercase tracking-wider">
+                            <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" /></svg>
+                            Locked
+                          </span>
+                        )}
+                      </div>
+                      <input
+                        type="date"
+                        name="passportExpiry"
+                        required
+                        value={formData.passportExpiry}
+                        onChange={renewId ? undefined : handleChange}
+                        readOnly={!!renewId}
+                        className={`w-full px-4 py-3.5 rounded-xl border transition-all ${
+                          renewId
+                            ? 'border-slate-200 bg-slate-50 text-slate-600 cursor-not-allowed select-none'
+                            : 'border-gray-200/80 bg-gray-50/50 text-gray-800 hover:bg-white focus:bg-white focus:ring-2 focus:ring-primary/20 focus:border-primary'
+                        }`}
                       />
                     </div>
                   </div>
@@ -1066,70 +1220,138 @@ const ApplyVisa = () => {
               {/* Step 4: Contact & Travel Information */}
               {step === 4 && (
                 <div className="space-y-6 animate-fadeIn">
+
+                  {/* ── Renewal: locked travel info banner ── */}
+                  {renewId && (
+                    <div className="flex items-start gap-3 p-4 rounded-xl bg-amber-50 border border-amber-200 text-amber-800">
+                      <svg className="w-5 h-5 flex-shrink-0 mt-0.5 text-amber-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" /></svg>
+                      <div>
+                        <p className="font-bold text-sm">Contact & Travel Details Locked</p>
+                        <p className="text-xs mt-0.5 leading-relaxed">Your contact details and lodging address are pre-filled and cannot be modified. Only the <strong>Expected Departure Date</strong> is editable.</p>
+                      </div>
+                    </div>
+                  )}
+
                   <div className={`grid grid-cols-1 md:grid-cols-2 gap-6`}>
+                    {/* Email */}
                     <div>
-                      <label className="block text-sm font-semibold text-gray-700 mb-2 tracking-wide">Email Address</label>
-                      <input 
-                        type="email" 
-                        name="email" 
-                        required 
-                        value={formData.email} 
-                        onChange={handleChange} 
-                        placeholder="yourname@example.com" 
-                        className="w-full px-4 py-3.5 rounded-xl border border-gray-200/80 bg-gray-50/50 hover:bg-white focus:bg-white focus:ring-2 focus:ring-primary/20 focus:border-primary text-gray-800"
+                      <div className="flex items-center gap-2 mb-2">
+                        <label className="block text-sm font-semibold text-gray-700 tracking-wide">Email Address</label>
+                        {renewId && (
+                          <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-slate-100 border border-slate-300 rounded-full text-[10px] font-bold text-slate-500 uppercase tracking-wider">
+                            <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" /></svg>
+                            Locked
+                          </span>
+                        )}
+                      </div>
+                      <input
+                        type="email"
+                        name="email"
+                        required
+                        value={formData.email}
+                        onChange={renewId ? undefined : handleChange}
+                        readOnly={!!renewId}
+                        placeholder="yourname@example.com"
+                        className={`w-full px-4 py-3.5 rounded-xl border transition-all ${
+                          renewId
+                            ? 'border-slate-200 bg-slate-50 text-slate-600 cursor-not-allowed select-none'
+                            : 'border-gray-200/80 bg-gray-50/50 text-gray-800 hover:bg-white focus:bg-white focus:ring-2 focus:ring-primary/20 focus:border-primary'
+                        }`}
                       />
                     </div>
+                    {/* Phone */}
                     <div>
-                      <label className="block text-sm font-semibold text-gray-700 mb-2 tracking-wide">Phone Number</label>
-                      <input 
-                        type="tel" 
-                        name="phone" 
-                        required 
-                        value={formData.phone} 
-                        onChange={handleChange} 
-                        placeholder="e.g. +1 555-0199" 
-                        className="w-full px-4 py-3.5 rounded-xl border border-gray-200/80 bg-gray-50/50 hover:bg-white focus:bg-white focus:ring-2 focus:ring-primary/20 focus:border-primary text-gray-800"
+                      <div className="flex items-center gap-2 mb-2">
+                        <label className="block text-sm font-semibold text-gray-700 tracking-wide">Phone Number</label>
+                        {renewId && (
+                          <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-slate-100 border border-slate-300 rounded-full text-[10px] font-bold text-slate-500 uppercase tracking-wider">
+                            <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" /></svg>
+                            Locked
+                          </span>
+                        )}
+                      </div>
+                      <input
+                        type="tel"
+                        name="phone"
+                        required
+                        value={formData.phone}
+                        onChange={renewId ? undefined : handleChange}
+                        readOnly={!!renewId}
+                        placeholder="e.g. +1 555-0199"
+                        className={`w-full px-4 py-3.5 rounded-xl border transition-all ${
+                          renewId
+                            ? 'border-slate-200 bg-slate-50 text-slate-600 cursor-not-allowed select-none'
+                            : 'border-gray-200/80 bg-gray-50/50 text-gray-800 hover:bg-white focus:bg-white focus:ring-2 focus:ring-primary/20 focus:border-primary'
+                        }`}
                       />
                     </div>
+                    {/* Arrival Date — hidden on renewal */}
                     {!renewId && (
                       <div>
                         <label className="block text-sm font-semibold text-gray-700 mb-2 tracking-wide">Expected Arrival Date</label>
-                        <input 
-                          type="date" 
-                          name="arrivalDate" 
-                          required={!renewId} 
-                          value={formData.arrivalDate} 
-                          onChange={handleChange} 
+                        <input
+                          type="date"
+                          name="arrivalDate"
+                          required={!renewId}
+                          value={formData.arrivalDate}
+                          onChange={handleChange}
                           className="w-full px-4 py-3.5 rounded-xl border border-gray-200/80 bg-gray-50/50 hover:bg-white focus:bg-white focus:ring-2 focus:ring-primary/20 focus:border-primary text-gray-800"
                         />
                       </div>
                     )}
+                    {/* Departure Date — EDITABLE in renewal */}
                     <div>
-                      <label className="block text-sm font-semibold text-gray-700 mb-2 tracking-wide">Expected Departure Date</label>
-                      <input 
-                        type="date" 
-                        name="departureDate" 
-                        required 
-                        value={formData.departureDate} 
-                        onChange={handleChange} 
-                        className="w-full px-4 py-3.5 rounded-xl border border-gray-200/80 bg-gray-50/50 hover:bg-white focus:bg-white focus:ring-2 focus:ring-primary/20 focus:border-primary text-gray-800"
+                      <div className="flex items-center gap-2 mb-2">
+                        <label className="block text-sm font-semibold text-gray-700 tracking-wide">Expected Departure Date</label>
+                        {renewId && (
+                          <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-emerald-100 border border-emerald-300 rounded-full text-[10px] font-bold text-emerald-700 uppercase tracking-wider">
+                            Required
+                          </span>
+                        )}
+                      </div>
+                      <input
+                        type="date"
+                        name="departureDate"
+                        required
+                        value={formData.departureDate}
+                        onChange={handleChange}
+                        className={`w-full px-4 py-3.5 rounded-xl border transition-all ${
+                          renewId
+                            ? 'border-2 border-blue-300 bg-blue-50/40 text-gray-800 focus:bg-white focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500'
+                            : 'border-gray-200/80 bg-gray-50/50 text-gray-800 hover:bg-white focus:bg-white focus:ring-2 focus:ring-primary/20 focus:border-primary'
+                        }`}
                       />
                     </div>
                   </div>
+
+                  {/* Host Address */}
                   <div>
-                    <label className="block text-sm font-semibold text-gray-700 mb-2 tracking-wide">Lodging / Host Address in Somalia</label>
-                    <textarea 
-                      name="hostAddress" 
-                      required 
-                      value={formData.hostAddress || formData.address || ''} 
-                      onChange={(e) => {
+                    <div className="flex items-center gap-2 mb-2">
+                      <label className="block text-sm font-semibold text-gray-700 tracking-wide">Lodging / Host Address in Somalia</label>
+                      {renewId && (
+                        <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-slate-100 border border-slate-300 rounded-full text-[10px] font-bold text-slate-500 uppercase tracking-wider">
+                          <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" /></svg>
+                          Locked
+                        </span>
+                      )}
+                    </div>
+                    <textarea
+                      name="hostAddress"
+                      required
+                      value={formData.hostAddress || formData.address || ''}
+                      onChange={renewId ? undefined : (e) => {
                         handleChange(e);
                         setFormData(prev => ({ ...prev, hostAddress: e.target.value, address: e.target.value }));
-                      }} 
-                      rows="2" 
-                      placeholder="e.g. Hotel Decale, Mogadishu, Somalia or residential host details..." 
-                      className="w-full px-4 py-3.5 rounded-xl border border-gray-200/80 bg-gray-50/50 hover:bg-white focus:bg-white focus:ring-2 focus:ring-primary/20 focus:border-primary text-gray-800"
-                    ></textarea>
+                      }}
+                      readOnly={!!renewId}
+                      rows="2"
+                      placeholder="e.g. Hotel Decale, Mogadishu, Somalia or residential host details..."
+                      className={`w-full px-4 py-3.5 rounded-xl border transition-all ${
+                        renewId
+                          ? 'border-slate-200 bg-slate-50 text-slate-600 cursor-not-allowed select-none resize-none'
+                          : 'border-gray-200/80 bg-gray-50/50 text-gray-800 hover:bg-white focus:bg-white focus:ring-2 focus:ring-primary/20 focus:border-primary'
+                      }`}
+                    />
                   </div>
                 </div>
               )}
@@ -1159,6 +1381,55 @@ const ApplyVisa = () => {
                 };
 
                 const isStudentVisa = formData.visaType && formData.visaType.toLowerCase().includes('student');
+
+                // ── RENEWAL MODE: show read-only document summary, no upload inputs ──
+                if (renewId) {
+                  const docs = [
+                    { icon: <IdentificationIcon className="w-8 h-8 text-slate-400" />, label: 'Passport Bio-Data Scan', name: formData.passportScanName },
+                    { icon: <CameraIcon className="w-8 h-8 text-slate-400" />, label: 'Applicant Photo / Selfie', name: formData.selfieName },
+                    {
+                      icon: <svg className="w-8 h-8 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>,
+                      label: 'Bank Statements',
+                      name: formData.supportingDocName,
+                    },
+                    ...(isStudentVisa ? [{ icon: <AcademicCapIcon className="w-8 h-8 text-slate-400" />, label: 'Admission Acceptance Proof', name: formData.admissionDocName }] : []),
+                  ];
+                  return (
+                    <div className="space-y-6 animate-fadeIn">
+                      {/* Renewal documents banner */}
+                      <div className="flex items-start gap-3 p-4 rounded-xl bg-amber-50 border border-amber-200 text-amber-800">
+                        <svg className="w-5 h-5 flex-shrink-0 mt-0.5 text-amber-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" /></svg>
+                        <div>
+                          <p className="font-bold text-sm">Documents Locked — Original Files Will Be Used</p>
+                          <p className="text-xs mt-0.5 leading-relaxed">Your documents from the original visa application are automatically carried over for this renewal. You cannot upload replacement documents.</p>
+                        </div>
+                      </div>
+                      {/* Read-only document cards */}
+                      <div className={`grid grid-cols-1 ${isStudentVisa ? 'md:grid-cols-2 lg:grid-cols-4' : 'md:grid-cols-3'} gap-5`}>
+                        {docs.map((doc) => (
+                          <div key={doc.label} className="rounded-2xl border-2 border-slate-200 bg-slate-50/80 p-5 flex flex-col items-center text-center gap-3 select-none">
+                            <div className="w-14 h-14 rounded-xl bg-slate-100 flex items-center justify-center flex-shrink-0">
+                              {doc.icon}
+                            </div>
+                            <div className="space-y-1 w-full">
+                              <h4 className="font-bold text-gray-700 text-sm">{doc.label}</h4>
+                              <div className="flex justify-center pt-1">
+                                <div className="inline-flex items-center gap-1.5 bg-emerald-50 text-emerald-700 text-xs px-3 py-1.5 rounded-full font-bold border border-emerald-200">
+                                  <svg className="w-3 h-3 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" /></svg>
+                                  On File from Original Application
+                                </div>
+                              </div>
+                            </div>
+                            <div className="mt-auto flex items-center gap-1 text-[10px] text-slate-400 font-semibold uppercase tracking-wider">
+                              <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" /></svg>
+                              Upload Locked
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  );
+                }
 
                 return (
                   <div className="space-y-6 animate-fadeIn">
@@ -1279,9 +1550,17 @@ const ApplyVisa = () => {
                         <span className="font-semibold text-gray-900 text-base">{formData.nationality}</span>
                       </div>
                       <div>
-                        <span className="block text-[10px] text-gray-400 uppercase font-extrabold tracking-wider">Travel Dates</span>
-                        <span className="font-semibold text-gray-900 text-base">{formData.arrivalDate} to {formData.departureDate}</span>
+                        <span className="block text-[10px] text-gray-400 uppercase font-extrabold tracking-wider">{renewId ? 'New Departure Date' : 'Travel Dates'}</span>
+                        <span className="font-semibold text-gray-900 text-base">
+                          {renewId ? (formData.departureDate || '—') : `${formData.arrivalDate} to ${formData.departureDate}`}
+                        </span>
                       </div>
+                      {renewId && formData.purposeOfStayingLonger && (
+                        <div className="md:col-span-2">
+                          <span className="block text-[10px] text-gray-400 uppercase font-extrabold tracking-wider">Purpose of Staying Longer</span>
+                          <span className="font-semibold text-gray-900 text-base">{formData.purposeOfStayingLonger}</span>
+                        </div>
+                      )}
                       <div>
                         <span className="block text-[10px] text-gray-400 uppercase font-extrabold tracking-wider">Passport Scan</span>
                         <span className="font-semibold text-emerald-600 text-sm">{formData.passportScanName ? `✓ ${formData.passportScanName}` : 'Missing'}</span>
