@@ -22,7 +22,8 @@ const AuditorDashboard = () => {
   const { user, logout, loading: authLoading } = useContext(AuthContext);
   const token = user ? user.token : null;
 
-  const [activeTab, setActiveTab] = useState('overview');
+  // Persist active tab across page refreshes via sessionStorage
+  const [activeTab, setActiveTab] = useState(() => sessionStorage.getItem('auditorActiveTab') || 'overview');
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   
   const [stats, setStats] = useState({ totalApps: 0, approved: 0, rejected: 0, pending: 0, overstays: 0 });
@@ -183,22 +184,28 @@ const AuditorDashboard = () => {
     }
   }, [token, user]);
 
+  // Persist tab selection to sessionStorage whenever it changes
+  useEffect(() => {
+    sessionStorage.setItem('auditorActiveTab', activeTab);
+  }, [activeTab]);
+
   const fetchData = async () => {
     setLoading(true);
     try {
       const headers = { 'Authorization': `Bearer ${token}` };
       
-      const statsRes = await axios.get('/api/auditor/overview', { headers });
-      if (statsRes.data.success) setStats(statsRes.data.stats);
+      // Run all API calls in parallel — cuts load time from ~4× to ~1× single-request time
+      const [statsRes, appsRes, logsRes, reportsRes] = await Promise.all([
+        axios.get('/api/auditor/overview', { headers }),
+        axios.get('/api/auditor/applications', { headers }),
+        axios.get('/api/auditor/activity-logs', { headers }),
+        axios.get('/api/auditor/reports', { headers }),
+      ]);
 
-      const appsRes = await axios.get('/api/auditor/applications', { headers });
-      if (appsRes.data.success) setApplications(appsRes.data.applications);
-
-      const logsRes = await axios.get('/api/auditor/activity-logs', { headers });
-      if (logsRes.data.success) setLogs(logsRes.data.logs);
-
-      const reportsRes = await axios.get('/api/auditor/reports', { headers });
-      if (reportsRes.data.success) setReports(reportsRes.data.reports);
+      if (statsRes.data.success)    setStats(statsRes.data.stats);
+      if (appsRes.data.success)     setApplications(appsRes.data.applications);
+      if (logsRes.data.success)     setLogs(logsRes.data.logs);
+      if (reportsRes.data.success)  setReports(reportsRes.data.reports);
 
     } catch (error) {
       console.error(error);
@@ -289,8 +296,16 @@ const AuditorDashboard = () => {
         <div className="p-8 print:p-0">
           
           {loading ? (
-            <div className="flex justify-center items-center py-20">
-              <div className="animate-spin rounded-full h-12 w-12 border-4 border-indigo-600 border-t-transparent"></div>
+            // Inline skeleton — sidebar and header are already visible; only content pulsates
+            <div className="space-y-4 animate-pulse">
+              <div className="h-28 bg-gray-200 rounded-2xl" />
+              <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
+                {[...Array(5)].map((_, i) => <div key={i} className="h-24 bg-gray-200 rounded-2xl" />)}
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="h-52 bg-gray-200 rounded-2xl" />
+                <div className="h-52 bg-gray-200 rounded-2xl" />
+              </div>
             </div>
           ) : (
             <>

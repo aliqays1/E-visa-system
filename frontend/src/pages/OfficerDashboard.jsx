@@ -581,7 +581,8 @@ const OfficerDashboard = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
   const searchDebounceRef = useRef(null);
-  const [activeTab, setActiveTab] = useState('review');
+  // Persist active tab across page refreshes via sessionStorage
+  const [activeTab, setActiveTab] = useState(() => sessionStorage.getItem('officerActiveTab') || 'review');
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const navigate = useNavigate();
 
@@ -661,7 +662,13 @@ const OfficerDashboard = () => {
   const handleTabChange = (tab) => {
     if (activeTab === tab) return;
     setActiveTab(tab);
+    sessionStorage.setItem('officerActiveTab', tab);
   };
+
+  // Sync tab to sessionStorage on every change (covers direct state updates)
+  useEffect(() => {
+    sessionStorage.setItem('officerActiveTab', activeTab);
+  }, [activeTab]);
 
   useEffect(() => {
     const controller = new AbortController();
