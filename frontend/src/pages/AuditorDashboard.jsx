@@ -296,15 +296,48 @@ const AuditorDashboard = () => {
         <div className="p-8 print:p-0">
           
           {loading ? (
-            // Inline skeleton — sidebar and header are already visible; only content pulsates
-            <div className="space-y-4 animate-pulse">
-              <div className="h-28 bg-gray-200 rounded-2xl" />
-              <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
-                {[...Array(5)].map((_, i) => <div key={i} className="h-24 bg-gray-200 rounded-2xl" />)}
+            <div className="space-y-6">
+              {/* ── Spinner banner ── */}
+              <div className="flex flex-col items-center justify-center gap-4 py-10 bg-white rounded-2xl border border-gray-200 shadow-sm">
+                {/* Spinning ring */}
+                <div className="relative w-16 h-16">
+                  <div className="absolute inset-0 rounded-full border-4 border-indigo-100" />
+                  <div className="absolute inset-0 rounded-full border-4 border-t-indigo-600 border-r-indigo-600 border-b-transparent border-l-transparent animate-spin" />
+                  {/* Inner dot */}
+                  <div className="absolute inset-0 flex items-center justify-center">
+                    <div className="w-3 h-3 rounded-full bg-indigo-600 animate-pulse" />
+                  </div>
+                </div>
+                <div className="text-center">
+                  <p className="text-base font-bold text-gray-800">Loading Portal Data…</p>
+                  <p className="text-xs text-gray-400 mt-1">Fetching applications, logs & reports in parallel</p>
+                </div>
+                {/* Animated progress bar */}
+                <div className="w-64 h-1.5 bg-indigo-100 rounded-full overflow-hidden">
+                  <div
+                    className="h-full bg-indigo-600 rounded-full"
+                    style={{ animation: 'loadBar 1.6s ease-in-out infinite' }}
+                  />
+                </div>
+                <style>{`
+                  @keyframes loadBar {
+                    0%   { width: 0%;   margin-left: 0; }
+                    50%  { width: 70%;  margin-left: 15%; }
+                    100% { width: 0%;   margin-left: 100%; }
+                  }
+                `}</style>
               </div>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="h-52 bg-gray-200 rounded-2xl" />
-                <div className="h-52 bg-gray-200 rounded-2xl" />
+
+              {/* ── Skeleton placeholders (pulsing grey cards) ── */}
+              <div className="animate-pulse space-y-4">
+                <div className="h-28 bg-gray-200 rounded-2xl" />
+                <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
+                  {[...Array(5)].map((_, i) => <div key={i} className="h-24 bg-gray-200 rounded-2xl" />)}
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="h-52 bg-gray-200 rounded-2xl" />
+                  <div className="h-52 bg-gray-200 rounded-2xl" />
+                </div>
               </div>
             </div>
           ) : (
