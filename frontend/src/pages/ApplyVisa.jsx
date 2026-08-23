@@ -161,6 +161,48 @@ const PAYMENT_OPTIONS = [
 ];
 
 
+// ─── Date Helpers ─────────────────────────────────────────────────────────────
+/**
+ * Calculate the expected departure date given an arrival date string (YYYY-MM-DD)
+ * and a visa duration in days. Arrival counts as Day 1, so:
+ *   departureDate = arrivalDate + (durationDays - 1)
+ * Example: arrival Aug 25, duration 30 → departure Sep 23
+ */
+const calcDepartureDate = (arrivalDateStr, durationDays) => {
+  if (!arrivalDateStr || !durationDays) return '';
+  const d = new Date(arrivalDateStr + 'T00:00:00'); // treat as local date
+  d.setDate(d.getDate() + Number(durationDays) - 1);
+  const yyyy = d.getFullYear();
+  const mm = String(d.getMonth() + 1).padStart(2, '0');
+  const dd = String(d.getDate()).padStart(2, '0');
+  return `${yyyy}-${mm}-${dd}`;
+};
+
+/**
+ * Return 'YYYY-MM-DD' string for today's local date (no timezone shift).
+ */
+const getTodayString = () => {
+  const now = new Date();
+  const yyyy = now.getFullYear();
+  const mm = String(now.getMonth() + 1).padStart(2, '0');
+  const dd = String(now.getDate()).padStart(2, '0');
+  return `${yyyy}-${mm}-${dd}`;
+};
+
+/**
+ * Add 6 calendar months to a date string (YYYY-MM-DD) and return YYYY-MM-DD.
+ * Used for the passport 6-month validity check.
+ */
+const addSixMonths = (dateStr) => {
+  if (!dateStr) return '';
+  const d = new Date(dateStr + 'T00:00:00');
+  d.setMonth(d.getMonth() + 6);
+  const yyyy = d.getFullYear();
+  const mm = String(d.getMonth() + 1).padStart(2, '0');
+  const dd = String(d.getDate()).padStart(2, '0');
+  return `${yyyy}-${mm}-${dd}`;
+};
+
 const ApplyVisa = () => {
   const { user, loading } = useContext(AuthContext);
   const token = user ? user.token : null;
@@ -174,6 +216,9 @@ const ApplyVisa = () => {
   const [editId, setEditId] = useState(null);
   const [renewId, setRenewId] = useState(null);
   const [visaConfigs, setVisaConfigs] = useState([]);
+  // ── Inline validation error states ────────────────────────────────────────
+  const [passportExpiryError, setPassportExpiryError] = useState('');
+  const [arrivalDateError, setArrivalDateError] = useState('');
 
   // Expanded Form State to include necessary fields
   const [formData, setFormData] = useState({
@@ -344,13 +389,84 @@ const ApplyVisa = () => {
   const handleBack = () => setStep(prev => Math.max(prev - 1, 1));
   const handleChange = (e) => {
     let { name, value } = e.target;
+
+    // Format card expiry
     if (name === 'cardExpiry') {
       value = value.replace(/\D/g, '');
       if (value.length > 2) {
         value = value.substring(0, 2) + '/' + value.substring(2, 4);
       }
     }
-    setFormData(prev => ({ ...prev, [name]: value }));
+
+    setFormData(prev => {
+      const updated = { ...prev, [name]: value };
+
+      // ── Auto-calculate departure date ─────────────────────────────────────
+      // When arrival date changes, recalculate departure from current duration
+      if (name === 'arrivalDate' && prev.duration) {
+        updated.departureDate = calcDepartureDate(value, prev.duration);
+      }
+      // When duration changes, recalculate departure from current arrival date
+      if (name === 'duration' && prev.arrivalDate) {
+        updated.departureDate = calcDepartureDate(prev.arrivalDate, value);
+      }
+
+      return updated;
+    });
+
+    // ── Cross-validate arrival date ───────────────────────────────────────────
+    if (name === 'arrivalDate') {
+      const today = getTodayString();
+      if (value && value < today) {
+        setArrivalDateError('Expected arrival date cannot be in the past.');
+      } else {
+        setArrivalDateError('');
+      }
+
+      // Re-check passport validity against the new arrival date
+      setFormData(prev => {
+        const expiry = prev.passportExpiry;
+        if (expiry && value) {
+          const minExpiry = addSixMonths(value);
+          if (expiry < value) {
+            setPassportExpiryError('Your passport has expired. Please provide a valid passport.');
+          } else if (expiry < minExpiry) {
+            setPassportExpiryError('Your passport must be valid for at least 6 months after your expected arrival date.');
+          } else {
+            setPassportExpiryError('');
+          }
+        }
+        return prev; // no state change needed here, just a side-effect
+      });
+    }
+
+    // ── Validate passport expiry on change ───────────────────────────────────
+    if (name === 'passportExpiry') {
+      if (!value) {
+        setPassportExpiryError('');
+      } else {
+        const today = getTodayString();
+        if (value < today) {
+          setPassportExpiryError('Your passport has expired. Please provide a valid passport.');
+        } else {
+          // Check 6-month rule against arrival date (if set)
+          setFormData(prev => {
+            const arrival = prev.arrivalDate;
+            if (arrival) {
+              const minExpiry = addSixMonths(arrival);
+              if (value < minExpiry) {
+                setPassportExpiryError('Your passport must be valid for at least 6 months after your expected arrival date.');
+              } else {
+                setPassportExpiryError('');
+              }
+            } else {
+              setPassportExpiryError('');
+            }
+            return prev;
+          });
+        }
+      }
+    }
   };
 
   const handleFileChange = (e, fieldName) => {
@@ -576,6 +692,58 @@ const ApplyVisa = () => {
 
   const handleSubmit = (e) => {
     e.preventDefault();
+
+    // ── Step 3: Block if passport expiry invalid ──────────────────────────────
+    if (step === 3 && !renewId) {
+      const today = getTodayString();
+      const expiry = formData.passportExpiry;
+      const arrival = formData.arrivalDate;
+
+      if (!expiry) {
+        setPassportExpiryError('Please enter your passport expiry date.');
+        return;
+      }
+      if (expiry < today) {
+        setPassportExpiryError('Your passport has expired. Please provide a valid passport.');
+        return;
+      }
+      if (arrival) {
+        const minExpiry = addSixMonths(arrival);
+        if (expiry < minExpiry) {
+          setPassportExpiryError('Your passport must be valid for at least 6 months after your expected arrival date.');
+          return;
+        }
+      }
+      if (passportExpiryError) return; // block if error already set
+    }
+
+    // ── Step 4: Block if arrival date invalid ────────────────────────────────
+    if (step === 4 && !renewId) {
+      const today = getTodayString();
+      const arrival = formData.arrivalDate;
+
+      if (!arrival) {
+        setArrivalDateError('Please enter your expected arrival date.');
+        return;
+      }
+      if (arrival < today) {
+        setArrivalDateError('Expected arrival date cannot be in the past.');
+        return;
+      }
+      if (arrivalDateError) return; // block if error already set
+
+      // Also re-validate passport against the confirmed arrival
+      const expiry = formData.passportExpiry;
+      if (expiry && arrival) {
+        const minExpiry = addSixMonths(arrival);
+        if (expiry < minExpiry) {
+          setPassportExpiryError('Your passport must be valid for at least 6 months after your expected arrival date.');
+          // Let user go back to Step 3 to fix; we still block here
+          return;
+        }
+      }
+    }
+
     if (step === 6 && (editId || renewId)) {
       if (renewId) {
         nextStep(); // Go to payment for renewal
@@ -1047,7 +1215,7 @@ const ApplyVisa = () => {
                         value={formData.purposeOfStayingLonger}
                         onChange={handleChange}
                         rows="4"
-                        placeholder="Please explain why you need to extend your stay in Somalia (e.g. ongoing business negotiations, medical treatment, awaiting a connecting event, etc.)"
+                        placeholder="Please explain why you need to extend your stay in Somalia"
                         className="w-full px-4 py-3.5 rounded-xl border-2 border-blue-300 bg-blue-50/40 hover:bg-white focus:bg-white focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 text-gray-800 transition-all"
                       />
                     ) : (
@@ -1209,9 +1377,24 @@ const ApplyVisa = () => {
                         className={`w-full px-4 py-3.5 rounded-xl border transition-all ${
                           renewId
                             ? 'border-slate-200 bg-slate-50 text-slate-600 cursor-not-allowed select-none'
-                            : 'border-gray-200/80 bg-gray-50/50 text-gray-800 hover:bg-white focus:bg-white focus:ring-2 focus:ring-primary/20 focus:border-primary'
+                            : passportExpiryError
+                              ? 'border-red-400 bg-red-50 text-gray-800 focus:ring-2 focus:ring-red-300 focus:border-red-400'
+                              : 'border-gray-200/80 bg-gray-50/50 text-gray-800 hover:bg-white focus:bg-white focus:ring-2 focus:ring-primary/20 focus:border-primary'
                         }`}
                       />
+                      {/* Inline error message */}
+                      {passportExpiryError && !renewId && (
+                        <p className="mt-1.5 text-xs text-red-600 font-semibold flex items-start gap-1">
+                          <svg className="w-3.5 h-3.5 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                          {passportExpiryError}
+                        </p>
+                      )}
+                      {/* Hint: 6-month validity requirement */}
+                      {!passportExpiryError && !renewId && (
+                        <p className="mt-1.5 text-xs text-gray-400 leading-snug">
+                          Your passport must remain valid for at least <strong>6 months</strong> after your expected arrival date.
+                        </p>
+                      )}
                     </div>
                   </div>
                 </div>
@@ -1294,18 +1477,34 @@ const ApplyVisa = () => {
                           name="arrivalDate"
                           required={!renewId}
                           value={formData.arrivalDate}
+                          min={getTodayString()}
                           onChange={handleChange}
-                          className="w-full px-4 py-3.5 rounded-xl border border-gray-200/80 bg-gray-50/50 hover:bg-white focus:bg-white focus:ring-2 focus:ring-primary/20 focus:border-primary text-gray-800"
+                          className={`w-full px-4 py-3.5 rounded-xl border transition-all ${
+                            arrivalDateError
+                              ? 'border-red-400 bg-red-50 text-gray-800 focus:ring-2 focus:ring-red-300 focus:border-red-400'
+                              : 'border-gray-200/80 bg-gray-50/50 hover:bg-white focus:bg-white focus:ring-2 focus:ring-primary/20 focus:border-primary text-gray-800'
+                          }`}
                         />
+                        {/* Inline error message */}
+                        {arrivalDateError && (
+                          <p className="mt-1.5 text-xs text-red-600 font-semibold flex items-start gap-1">
+                            <svg className="w-3.5 h-3.5 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                            {arrivalDateError}
+                          </p>
+                        )}
                       </div>
                     )}
-                    {/* Departure Date — EDITABLE in renewal */}
+                    {/* Departure Date — auto-calculated for new; EDITABLE in renewal */}
                     <div>
                       <div className="flex items-center gap-2 mb-2">
                         <label className="block text-sm font-semibold text-gray-700 tracking-wide">Expected Departure Date</label>
-                        {renewId && (
+                        {renewId ? (
                           <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-emerald-100 border border-emerald-300 rounded-full text-[10px] font-bold text-emerald-700 uppercase tracking-wider">
                             Required
+                          </span>
+                        ) : (
+                          <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-sky-100 border border-sky-300 rounded-full text-[10px] font-bold text-sky-600 uppercase tracking-wider">
+                            Auto-calculated
                           </span>
                         )}
                       </div>
@@ -1314,13 +1513,22 @@ const ApplyVisa = () => {
                         name="departureDate"
                         required
                         value={formData.departureDate}
-                        onChange={handleChange}
+                        onChange={renewId ? handleChange : undefined}
+                        readOnly={!renewId}
                         className={`w-full px-4 py-3.5 rounded-xl border transition-all ${
                           renewId
                             ? 'border-2 border-blue-300 bg-blue-50/40 text-gray-800 focus:bg-white focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500'
-                            : 'border-gray-200/80 bg-gray-50/50 text-gray-800 hover:bg-white focus:bg-white focus:ring-2 focus:ring-primary/20 focus:border-primary'
+                            : 'border-gray-200/80 bg-slate-50 text-gray-600 cursor-not-allowed select-none'
                         }`}
                       />
+                      {/* Helper note for new applications */}
+                      {!renewId && (
+                        <p className="mt-1.5 text-xs text-gray-400 leading-snug">
+                          {formData.departureDate
+                            ? `Automatically calculated based on your ${formData.duration}-day visa duration.`
+                            : 'Will be automatically calculated once you select your arrival date and visa duration.'}
+                        </p>
+                      )}
                     </div>
                   </div>
 
@@ -1437,8 +1645,8 @@ const ApplyVisa = () => {
                       
                       {/* Passport upload block */}
                       <div className="border border-dashed border-gray-300 hover:border-primary rounded-2xl p-6 text-center transition-all bg-gray-50/50 hover:bg-white relative flex flex-col justify-between items-center">
-                        <input 
-                          type="file" 
+                        <input
+                          type="file"
                           accept="image/*,application/pdf"
                           required={!formData.passportScanName}
                           onChange={(e) => handleFileChange(e, 'passportScanName')}
@@ -1447,8 +1655,16 @@ const ApplyVisa = () => {
                         <div className="space-y-3 w-full">
                           <IdentificationIcon className="w-10 h-10 mx-auto text-primary" />
                           <h4 className="font-bold text-gray-800 text-sm">Passport Bio-Data Scan</h4>
-                          <p className="text-xs text-gray-500 leading-relaxed px-2">
-                            Upload a clear JPG or PDF of your passport bio page. Max size 5MB.
+                          <p className="text-xs text-gray-500 leading-relaxed px-1 text-left">
+                            Upload a clear, readable scan or photo of your <strong>passport biodata page</strong>. The following must be visible and legible:
+                          </p>
+                          <ul className="text-xs text-gray-500 leading-relaxed text-left list-disc list-inside px-1 space-y-0.5">
+                            <li>Your full name, date of birth &amp; nationality</li>
+                            <li>Passport number &amp; expiry date</li>
+                            <li>Your passport photo</li>
+                          </ul>
+                          <p className="text-[11px] text-amber-600 font-semibold leading-snug px-1 text-left">
+                            Do not upload a blurred, cropped, or unreadable document. Accepted: JPG, PNG, PDF · Max 5 MB.
                           </p>
                           <div className="pt-1 flex justify-center w-full">
                             {renderDocBadge(formData.passportScanName)}
@@ -1458,8 +1674,8 @@ const ApplyVisa = () => {
 
                       {/* Photo/Selfie upload block */}
                       <div className="border border-dashed border-gray-300 hover:border-primary rounded-2xl p-6 text-center transition-all bg-gray-50/50 hover:bg-white relative flex flex-col justify-between items-center">
-                        <input 
-                          type="file" 
+                        <input
+                          type="file"
                           accept="image/*"
                           required={!formData.selfieName}
                           onChange={(e) => handleFileChange(e, 'selfieName')}
@@ -1468,8 +1684,17 @@ const ApplyVisa = () => {
                         <div className="space-y-3 w-full">
                           <CameraIcon className="w-10 h-10 mx-auto text-primary" />
                           <h4 className="font-bold text-gray-800 text-sm">Applicant Photo / Selfie</h4>
-                          <p className="text-xs text-gray-500 leading-relaxed px-2">
-                            Upload a recent high-quality passport size portrait. Max size 2MB.
+                          <p className="text-xs text-gray-500 leading-relaxed px-1 text-left">
+                            Upload a recent <strong>passport-style photograph</strong>. Requirements:
+                          </p>
+                          <ul className="text-xs text-gray-500 leading-relaxed text-left list-disc list-inside px-1 space-y-0.5">
+                            <li>Front-facing, head &amp; shoulders clearly visible</li>
+                            <li>Good lighting, plain/simple background</li>
+                            <li>No sunglasses, face coverings, or heavy filters</li>
+                            <li>Only one person in the photo</li>
+                          </ul>
+                          <p className="text-[11px] text-amber-600 font-semibold leading-snug px-1 text-left">
+                            Do not upload a blurry or heavily edited photo. Accepted: JPG, PNG · Max 5 MB.
                           </p>
                           <div className="pt-1 flex justify-center w-full">
                             {renderDocBadge(formData.selfieName)}
@@ -1489,8 +1714,17 @@ const ApplyVisa = () => {
                         <div className="space-y-3 w-full">
                           <svg className="w-10 h-10 mx-auto text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
                           <h4 className="font-bold text-gray-800 text-sm">Bank Statements</h4>
-                          <p className="text-xs text-gray-500 leading-relaxed px-2">
-                            Upload banking statements. Max size 5MB.
+                          <p className="text-xs text-gray-500 leading-relaxed px-1 text-left">
+                            Upload a recent <strong>bank or financial statement</strong>. The document must clearly show:
+                          </p>
+                          <ul className="text-xs text-gray-500 leading-relaxed text-left list-disc list-inside px-1 space-y-0.5">
+                            <li>Your full name as account holder</li>
+                            <li>Bank or institution name</li>
+                            <li>Statement date or statement period</li>
+                            <li>All text must be readable</li>
+                          </ul>
+                          <p className="text-[11px] text-amber-600 font-semibold leading-snug px-1 text-left">
+                            Do not upload an altered or illegible document. Accepted: PDF, JPG, PNG · Max 5 MB.
                           </p>
                           <div className="pt-1 flex justify-center w-full">
                             {renderDocBadge(formData.supportingDocName)}

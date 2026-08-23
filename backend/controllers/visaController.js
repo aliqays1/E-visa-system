@@ -46,6 +46,109 @@ function getLocalIp() {
   return 'localhost';
 }
 
+// ── Date Validation & Formatting Helpers ─────────────────────────────────────
+function formatDateToYYYYMMDD(d) {
+  const yyyy = d.getFullYear();
+  const mm = String(d.getMonth() + 1).padStart(2, '0');
+  const dd = String(d.getDate()).padStart(2, '0');
+  return `${yyyy}-${mm}-${dd}`;
+}
+
+function parseDateOnly(str) {
+  if (!str) return null;
+  if (str instanceof Date) {
+    return new Date(str.getFullYear(), str.getMonth(), str.getDate());
+  }
+  const cleanStr = String(str).split('T')[0];
+  const parts = cleanStr.split('-');
+  if (parts.length === 3) {
+    const y = parseInt(parts[0], 10);
+    const m = parseInt(parts[1], 10) - 1;
+    const d = parseInt(parts[2], 10);
+    return new Date(y, m, d);
+  }
+  return new Date(str);
+}
+
+function validateApplicationDates({ personalDetails, travelDetails, visaDuration, isRenewal = false }) {
+  const arrivalDateStr = travelDetails?.arrivalDate;
+  const departureDateStr = travelDetails?.departureDate;
+  const passportExpiryStr = personalDetails?.passportExpiry;
+
+  const now = new Date();
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+
+  // 1. Arrival Date Validation (for new applications)
+  if (!isRenewal && arrivalDateStr) {
+    const arrivalDate = parseDateOnly(arrivalDateStr);
+    if (!arrivalDate || isNaN(arrivalDate.getTime())) {
+      return { isValid: false, message: 'Invalid arrival date provided.' };
+    }
+    // Expected arrival date cannot be in the past
+    if (arrivalDate < today) {
+      return { isValid: false, message: 'Expected arrival date cannot be in the past.' };
+    }
+  }
+
+  // 2. Departure Date Validation
+  if (arrivalDateStr && departureDateStr) {
+    const arrivalDate = parseDateOnly(arrivalDateStr);
+    const departureDate = parseDateOnly(departureDateStr);
+
+    if (!departureDate || isNaN(departureDate.getTime())) {
+      return { isValid: false, message: 'Invalid departure date provided.' };
+    }
+
+    if (departureDate <= arrivalDate) {
+      return { isValid: false, message: 'Expected departure date cannot be earlier than or equal to the arrival date.' };
+    }
+
+    // For new applications: verify stay matches configured visa duration (arrival is Day 1)
+    if (visaDuration && !isRenewal) {
+      const expectedDep = new Date(arrivalDate);
+      expectedDep.setDate(expectedDep.getDate() + Number(visaDuration) - 1);
+
+      const expectedDepStr = formatDateToYYYYMMDD(expectedDep);
+      const actualDepStr = formatDateToYYYYMMDD(departureDate);
+
+      if (expectedDepStr !== actualDepStr) {
+        return {
+          isValid: false,
+          message: `Expected departure date (${actualDepStr}) does not correspond to the configured ${visaDuration}-day visa duration (expected ${expectedDepStr}).`
+        };
+      }
+    }
+  }
+
+  // 3. Passport Expiry Validation
+  if (passportExpiryStr) {
+    const passportExpiry = parseDateOnly(passportExpiryStr);
+    if (!passportExpiry || isNaN(passportExpiry.getTime())) {
+      return { isValid: false, message: 'Invalid passport expiry date provided.' };
+    }
+
+    if (passportExpiry < today) {
+      return { isValid: false, message: 'Your passport has expired. Please provide a valid passport.' };
+    }
+
+    if (arrivalDateStr) {
+      const arrivalDate = parseDateOnly(arrivalDateStr);
+      // Require passport validity >= arrivalDate + 6 months
+      const minPassportExpiry = new Date(arrivalDate);
+      minPassportExpiry.setMonth(minPassportExpiry.getMonth() + 6);
+
+      if (passportExpiry < minPassportExpiry) {
+        return {
+          isValid: false,
+          message: 'Your passport must be valid for at least 6 months after your expected arrival date.'
+        };
+      }
+    }
+  }
+
+  return { isValid: true };
+}
+
 // Apply for a Visa
 exports.applyVisa = async (req, res) => {
   try {
@@ -100,6 +203,21 @@ exports.applyVisa = async (req, res) => {
       } else if (!vDuration) {
         vDuration = 30; // Last-resort fallback when admin has not configured anything yet
       }
+    }
+
+    // Validate travel and passport dates
+    const dateValidation = validateApplicationDates({
+      personalDetails: parsedPersonalDetails,
+      travelDetails: parsedTravelDetails,
+      visaDuration: vDuration,
+      isRenewal: false
+    });
+
+    if (!dateValidation.isValid) {
+      return res.status(400).json({
+        success: false,
+        message: dateValidation.message
+      });
     }
     
     // Validate amount against config
@@ -228,7 +346,20 @@ exports.renewVisa = async (req, res) => {
       const option = config.options.find(o => o.duration === vDuration);
       if (option) expectedAmount = option.price;
     }
-    const finalAmount = amountPaid ? Number(amountPaid) : 0;
+    // Validate travel and passport dates
+    const dateValidation = validateApplicationDates({
+      personalDetails: parsedPersonal,
+      travelDetails: parsedTravel,
+      visaDuration: vDuration,
+      isRenewal: true
+    });
+
+    if (!dateValidation.isValid) {
+      return res.status(400).json({
+        success: false,
+        message: dateValidation.message
+      });
+    }
 
     const renewalApp = new VisaApplication({
       applicantId: req.user._id,
@@ -325,6 +456,25 @@ exports.updateApplication = async (req, res) => {
     // Parse JSON details if sent as strings (via FormData)
     const parsedPersonalDetails = typeof personalDetails === 'string' ? JSON.parse(personalDetails) : personalDetails;
     const parsedTravelDetails = typeof travelDetails === 'string' ? JSON.parse(travelDetails) : travelDetails;
+
+    const targetPersonal = parsedPersonalDetails || application.personalDetails;
+    const targetTravel = parsedTravelDetails || application.travelDetails;
+    const targetDuration = visaDuration ? Number(visaDuration) : application.visaDuration;
+
+    // Validate travel and passport dates
+    const dateValidation = validateApplicationDates({
+      personalDetails: targetPersonal,
+      travelDetails: targetTravel,
+      visaDuration: targetDuration,
+      isRenewal: application.applicationType === 'Renewal'
+    });
+
+    if (!dateValidation.isValid) {
+      return res.status(400).json({
+        success: false,
+        message: dateValidation.message
+      });
+    }
 
     // Update fields
     application.visaType = visaType || application.visaType;
